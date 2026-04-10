@@ -312,8 +312,6 @@ const SHIPS={
   black:2,
   white:2,
   rainbow:2,
-
-  rare_generic:2
 };
 const RARE_COLORS=['orange','red','black','white','rainbow'];
 
@@ -335,6 +333,7 @@ let lastTopMoves = null;
 const MAX_MISSES = 5;
 let lastSpecialGroup = null;
 let placementsCache = {};
+let configLocked = false;
 
 window.selectColor = function(c,e){
 if(e.target.classList.contains('disabled')) return;
@@ -348,6 +347,7 @@ selectedColor = c;
 }
 
 window.setRare = function(n,btn){
+  if(configLocked) return;
   rareCount=n;
   document.querySelectorAll('[onclick^="setRare"]').forEach(b=>b.classList.remove('active-btn'));
   btn.classList.add('active-btn');
@@ -363,6 +363,7 @@ window.setRare = function(n,btn){
 }
 
 window.setThreshold = function(n,btn){
+  if(configLocked) return;
   threshold=n;
   document.getElementById('th4').classList.remove('active-btn');
   document.getElementById('th5').classList.remove('active-btn');
@@ -392,6 +393,18 @@ function createBoards(){
   }
 }
 
+function lockConfigUI(){
+
+  document.querySelectorAll('[onclick^="setRare"]').forEach(btn=>{
+    btn.classList.add('disabled');
+  });
+
+  document.querySelectorAll('[onclick^="setThreshold"]').forEach(btn=>{
+    btn.classList.add('disabled');
+  });
+
+}
+
 function updateBoardLock(){
   const board=document.getElementById('playBoard');
   if(selectedColor && rareCount!==null){
@@ -403,6 +416,11 @@ function updateBoardLock(){
 
 function placeColor(i){
   if(!selectedColor || rareCount===null) return;
+  
+  if(!configLocked){
+  configLocked = true;
+  lockConfigUI();
+}
 
   grid[i]=grid[i]===selectedColor?null:selectedColor;
   placementsCache = {};
@@ -417,6 +435,11 @@ function getPlacementsCached(color){
     placementsCache[color] = getValidPlacements(color);
   }
   return placementsCache[color];
+}
+
+function getShipSize(color){
+  if(color.startsWith('rare_')) return 2;
+  return SHIPS[color];
 }
 
 function isStateValid(){
@@ -457,12 +480,12 @@ function isStateValid(){
     if(sameRow){
       let min=Math.min(...cols);
       let max=Math.max(...cols);
-      if(max-min+1 > SHIPS[color]) return false;
+      if(max-min+1 > getShipSize(color)) return false;
     }
     if(sameCol){
       let min=Math.min(...rows);
       let max=Math.max(...rows);
-      if(max-min+1 > SHIPS[color]) return false;
+      if(max-min+1 > getShipSize(color)) return false;
     }
   }
 
@@ -490,7 +513,7 @@ function updateColorAvailability(){
 
     let disabled = false;
 
-    if(SHIPS[color] && counts[color] >= SHIPS[color]){
+    if(getShipSize(color) && counts[color] >= getShipSize(color)){
       disabled = true;
     }
 
@@ -534,19 +557,19 @@ function getShipList(){
   let ships = ['teal','green','yellow'];
 
   let used = getUsedRare();
-  let needed = rareCount - used.length;
+  let remaining = Math.max(0, rareCount - used.length);
 
   ships.push(...used);
 
-  for(let i=0;i<needed;i++){
-    ships.push('rare_generic');
+  for(let i = 0; i < remaining; i++){
+    ships.push('rare_' + i);
   }
 
   return ships;
 }
 
 function getKnownCells(color){
-  if(color === 'rare_generic') return [];
+  if(color.startsWith('rare_')) return [];
   return grid.map((c,i)=>c===color?i:null).filter(x=>x!==null);
 }
 
@@ -560,7 +583,7 @@ function getDirectionConstraint(cells){
 }
 
 function getValidPlacements(color){
-  let size=SHIPS[color];
+  let size=getShipSize(color);
   let placements=[];
   let known=getKnownCells(color);
   let direction=getDirectionConstraint(known);
@@ -584,11 +607,11 @@ function getValidPlacements(color){
         for(let kc of known){ if(!cells.includes(kc)) valid=false; }
         for(let i of cells){
 if(grid[i] && grid[i] !== 'miss'){
- if(color !== 'rare_generic'){
-  if(grid[i] !== color) valid = false;
-} else {
-  if(grid[i] && !RARE_COLORS.includes(grid[i])) valid = false;
-}
+  if(color.startsWith('rare_')){
+    valid = false;
+  } else {
+    if(grid[i] !== color) valid = false;
+  }
 }
 }
         if(valid) placements.push(cells);
@@ -652,10 +675,15 @@ for(let i=0;i<25;i++){
   }
 }
 
-  for(let color in SHIPS){
+let ships = getShipList();
 
- if(color === 'rare_generic'){
+for(let color of ships){
+
+if(color.startsWith('rare_')){
   let cells = board.map((c,i)=>c===color?i:null).filter(x=>x!==null);
+
+  if(final && cells.length !== 2) return false;
+  if(!final && cells.length > 2) return false;
 
   continue;
 }
@@ -663,9 +691,9 @@ for(let i=0;i<25;i++){
   let cells = board.map((c,i)=>c===color?i:null).filter(x=>x!==null);
     if(final){
   if(cells.length === 0) continue;
-  if(cells.length !== SHIPS[color]) return false;
+  if(cells.length !== getShipSize(color)) return false;
 } else {
-  if(cells.length > SHIPS[color]) return false;
+  if(cells.length > getShipSize(color)) return false;
 }
 
     for(let i of cells){
@@ -716,76 +744,6 @@ for(let i=0;i<25;i++){
   }
 
   return true;
-}
-
-function getCanonicalKey(board){
-
-  let temp = Array(25).fill('.');
-
-  for(let i=0;i<25;i++){
-    if(board[i] && board[i] !== 'rare_generic'){
-      temp[i] = board[i];
-    }
-  }
-
-  let rareCells = [];
-  for(let i=0;i<25;i++){
-    if(board[i] === 'rare_generic'){
-      rareCells.push(i);
-    }
-  }
-
-let visited = new Set();
-let groups = [];
-let rareSet = new Set(rareCells);
-
-for(let i of rareCells){
-  if(visited.has(i)) continue;
-
-  let [r,c] = indexToCoord(i);
-
-  let candidates = [];
-
-  if(r > 0) candidates.push(coordToIndex(r-1,c));
-  if(r < 4) candidates.push(coordToIndex(r+1,c));
-  if(c > 0) candidates.push(coordToIndex(r,c-1));
-  if(c < 4) candidates.push(coordToIndex(r,c+1));
-
-  let partner = candidates.find(n => {
-  if(!rareSet.has(n) || visited.has(n)) return false;
-
-  let [r2, c2] = indexToCoord(n);
-
-  return (
-    (Math.abs(r - r2) === 1 && c === c2) ||
-    (Math.abs(c - c2) === 1 && r === r2)
-  );
-});
-
-  if(partner === undefined){
-    return "__INVALID__" + Math.random();
-  }
-
-  let group = [i, partner].sort((a,b)=>a-b);
-
-  visited.add(i);
-  visited.add(partner);
-
-  groups.push(group);
-}
-
-  groups.sort((a,b)=>a[0]-b[0]);
-
-  let labels = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
-
-  groups.forEach((g, idx)=>{
-    let label = labels[idx];
-    g.forEach(i=>{
-      temp[i] = label;
-    });
-  });
-
-  return temp.join(',');
 }
 
 function runSimulation(){
@@ -898,8 +856,8 @@ let ships = getShipList();
 
 ships.sort((a,b)=>{
   if(a === b) return 0;
-  if(a === 'rare_generic') return 1;
-  if(b === 'rare_generic') return -1;
+if(a.startsWith('rare_') && !b.startsWith('rare_')) return 1;
+if(b.startsWith('rare_') && !a.startsWith('rare_')) return -1;
   return 0;
 });
 
@@ -973,9 +931,7 @@ for(let s of ships){
     if(index === ships.length){
   if(!isBoardValid(board, true)) return;
 
-let key = getCanonicalKey(board);
-
-if(key.startsWith("__INVALID__")) return;
+let key = board.join(',');
 
 if(seen.has(key)) return;
 seen.add(key);
@@ -1076,15 +1032,15 @@ function getRemainingBlueTiles(){
 
   let shipCells = 0;
   for(let color in SHIPS){
-    shipCells += SHIPS[color];
+    shipCells += getShipSize(color);
   }
 
   let totalShips = 0;
   let ships = getShipList();
 
-  ships.forEach(s => {
-    totalShips += SHIPS[s];
-  });
+ships.forEach(s => {
+  totalShips += getShipSize(s);
+});
 
   const totalBlue = totalCells - totalShips;
 
@@ -1123,7 +1079,7 @@ function getShipTracking(){
 
   let incomplete = 0;
   for(let color in SHIPS){
-    if(counts[color] > 0 && counts[color] < SHIPS[color]){
+    if(counts[color] > 0 && counts[color] < getShipSize(color)){
       incomplete++;
     }
   }
@@ -1377,6 +1333,16 @@ clearRecommendations();
 
 lastProbs = null;
 lastTopMoves = null;
+
+configLocked = false;
+
+document.querySelectorAll('[onclick^="setRare"]').forEach(b=>{
+  b.classList.remove('disabled');
+});
+
+document.querySelectorAll('[onclick^="setThreshold"]').forEach(b=>{
+  b.classList.remove('disabled');
+});
 
 }
 
