@@ -73,69 +73,6 @@
   flex: 1;
 }
   .board { display: grid; grid-template-columns: repeat(5, 50px); gap: 5px; }
-  
-.hash-container {
-  max-width: 720px;     
-  margin: 20px auto 0;    
-  
-  background: #f3f4f6;
-  padding: 15px;
-  border-radius: 12px;
-  box-shadow: 0 4px 10px rgba(0,0,0,0.1);
-
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-}
-
-.hash-row {
-  display: flex;
-  gap: 10px;
-}
-
-#hashInput {
-  flex: 1;
-  padding: 10px;
-  border-radius: 8px;
-  border: 1px solid #9ca3af;
-  font-size: 14px;
-  outline: none;
-  background: #ffffff;
-  transition: border 0.2s, box-shadow 0.2s;
-}
-
-#hashInput:focus {
-  border: 1px solid #4CAF50;
-  box-shadow: 0 0 0 2px rgba(76,175,80,0.2);
-}
-
-.primary-btn {
-  background: #4CAF50;
-  color: white;
-  padding: 8px 14px;
-  border-radius: 8px;
-  border: none;
-  cursor: pointer;
-  box-shadow: 0 3px 8px rgba(0,0,0,0.15);
-}
-
-.primary-btn:hover {
-  background: #43a047;
-}
-
-.secondary-btn {
-  background: #e5e7eb;
-  color: #111827;
-  padding: 8px 14px;
-  border-radius: 8px;
-  border: 1px solid #9ca3af;
-  cursor: pointer;
-  box-shadow: 0 2px 6px rgba(0,0,0,0.1);
-}
-
-.secondary-btn:hover {
-  background: #d1d5db;
-}
 
 .board-wrapper {
   display: flex;
@@ -403,23 +340,6 @@ const MODE = {
   TOUCH_GRASS: 3
 };
 
-const COLOR_MAP = {
-  null: 0,
-  miss: 1,
-  teal: 2,
-  green: 3,
-  yellow: 4,
-  orange: 5,
-  red: 6,
-  black: 7,
-  white: 8,
-  rainbow: 9
-};
-
-const REVERSE_COLOR_MAP = Object.fromEntries(
-  Object.entries(COLOR_MAP).map(([k,v]) => [v,k])
-);
-
 let currentMode = MODE.NORMAL;
 
 let history = [];
@@ -439,11 +359,6 @@ let appState = {
   isTrueEndgame: false,
   isGuaranteed: false,
   specialGroup: null
-};
-
-window.copyHash = function(){
-  const hash = encodeGame();
-  navigator.clipboard.writeText(hash).then(()=> alert("Hash copied!"));
 };
 
 window.selectColor = function(c,e){
@@ -554,8 +469,10 @@ function placeColor(i){
 }
 
 history.push({
-  index: i,
-  color: selectedColor
+  grid: [...grid],
+  selectedColor,
+  appState: JSON.parse(JSON.stringify(appState)),
+  currentMode
 });
 
   grid[i]=grid[i]===selectedColor?null:selectedColor;
@@ -1866,134 +1783,12 @@ updateBoardLock();
 updateInfoBox();
 
 };
-
-window.encodeGame = function(){
-  let bits = [];
-
-  let rc = (rareCount ?? 2) - 2;
-  bits.push((rc >> 1) & 1);
-  bits.push(rc & 1);
-
-  bits.push(threshold === 5 ? 1 : 0);
-
-  history.forEach(move => {
-
-    for(let i=4;i>=0;i--){
-      bits.push((move.index >> i) & 1);
-    }
-
-    let val = COLOR_MAP[move.color];
-    for(let i=3;i>=0;i--){
-      bits.push((val >> i) & 1);
-    }
-
-  });
-
-  while(bits.length % 8 !== 0) bits.push(0);
-
-  let bytes = [];
-  for(let i=0;i<bits.length;i+=8){
-    let byte = 0;
-    for(let j=0;j<8;j++){
-      byte = (byte << 1) | bits[i+j];
-    }
-    bytes.push(byte);
-  }
-
-  return btoa(String.fromCharCode(...bytes));
-};
-
-window.loadFromHash = function(str){
-  if(!str) return;
-
-  let binary;
-  try{
-    binary = atob(str);
-  }catch{
-    alert("Invalid hash");
-    return;
-  }
-
-  let bits = [];
-
-  for(let i=0;i<binary.length;i++){
-    let byte = binary.charCodeAt(i);
-    for(let j=7;j>=0;j--){
-      bits.push((byte >> j) & 1);
-    }
-  }
-
-  let index = 0;
-
-  let rc = (bits[index++] << 1) | bits[index++];
-  rareCount = rc + 2;
-
-  threshold = bits[index++] ? 5 : 4;
-
-
-  grid = Array(25).fill(null);
-  history = [];
-
-  while(index + 9 <= bits.length){
-
-    let cell = 0;
-    for(let i=0;i<5;i++){
-      cell = (cell << 1) | bits[index++];
-    }
-
-    let val = 0;
-    for(let i=0;i<4;i++){
-      val = (val << 1) | bits[index++];
-    }
-
-    let color = REVERSE_COLOR_MAP[val];
-    if(color === 'null') color = null;
-
-    grid[cell] = grid[cell] === color ? null : color;
-
-    history.push({ index: cell, color });
-  }
-
-  placementsCache = {};
-  currentMode = MODE.NORMAL;
-
-  appState = {
-    probs: null,
-    topMoves: null,
-    isTrueEndgame: false,
-    isGuaranteed: false,
-    specialGroup: null
-  };
-
-  configLocked = true;
-
-  restoreControlsUI();
-  render();
-  updateColorAvailability();
-  runSimulation();
-  renderUI();
-  updateBoardLock();
-};
-
 </script>
 
 </div>
 <div class="reset-container">
   <button id="undoBtn" onclick="undoMove()">Undo</button>
   <button id="resetBtn" onclick="resetAll()">Reset</button>
-</div>
-
-<div class="hash-container">
-  <div class="hash-row">
-    <input id="hashInput" placeholder="Paste game hash..." />
-    <button class="primary-btn" onclick="loadFromHash(document.getElementById('hashInput').value)">
-      Load
-    </button>
-  </div>
-
-  <button class="secondary-btn" onclick="copyHash()">
-    Copy Hash
-  </button>
 </div>
 </div>
 </body>
