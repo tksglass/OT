@@ -110,7 +110,7 @@
   justify-content:center;
   cursor:pointer;
   font-size:11px;
-  transition: transform 0.1s, outline 0.1s;
+  transition: all 0.2s ease;
 }
   .cell:hover { transform: scale(1.05); }
 
@@ -227,6 +227,20 @@
   font-size: 16px;
 }
 
+.recommended-final {
+  outline: 3px solid #a855f7;
+  box-shadow: 0 0 12px 4px rgba(168,85,247,0.9);
+  position: relative;
+}
+
+.recommended-final::after {
+  content: "?";
+  color: #a855f7;
+  font-weight: bold;
+  position: absolute;
+  font-size: 18px;
+}
+
   .confidence { margin-top: 10px; font-size: 14px; }
 </style>
 </head>
@@ -334,6 +348,13 @@ const MAX_MISSES = 5;
 let lastSpecialGroup = null;
 let placementsCache = {};
 let configLocked = false;
+let appState = {
+  probs: null,
+  topMoves: null,
+  isTrueEndgame: false,
+  isGuaranteed: false,
+  specialGroup: null
+};
 
 window.selectColor = function(c,e){
 if(e.target.classList.contains('disabled')) return;
@@ -343,7 +364,13 @@ selectedColor = c;
   e.target.classList.add('selected');
   updateBoardLock();
   updateColorAvailability();
+  
+  const hasStarted = grid.some(c => c !== null);
+
+if(!hasStarted){
   updateInfoBox();
+}
+
 }
 
 window.setRare = function(n,btn){
@@ -359,6 +386,7 @@ window.setRare = function(n,btn){
   }
 
   runSimulation(); 
+  renderUI(); 
   updateColorAvailability();
 }
 
@@ -428,6 +456,7 @@ function placeColor(i){
   render();
   runSimulation();
   updateColorAvailability();
+  renderUI();
 }
 
 function getPlacementsCached(color){
@@ -614,6 +643,26 @@ if(grid[i] && grid[i] !== 'miss'){
   }
 }
 }
+
+for(let i of cells){
+  let [r,c] = indexToCoord(i);
+
+  let diagonals = [
+    [r-1,c-1],[r-1,c+1],
+    [r+1,c-1],[r+1,c+1]
+  ];
+
+  for(let [dr,dc] of diagonals){
+    if(dr>=0 && dc>=0 && dr<5 && dc<5){
+      let ni = coordToIndex(dr,dc);
+
+      if(grid[ni] === color){
+        valid = false;
+      }
+    }
+  }
+}
+
         if(valid) placements.push(cells);
       }
     }
@@ -753,22 +802,13 @@ let isFull = grid.every(cell => cell !== null);
 if(isFull){
   currentMode = MODE.TOUCH_GRASS;
 
-  clearRecommendations();
+  appState.probs = null;
+  appState.topMoves = null;
+  appState.isTrueEndgame = false;
+  appState.isGuaranteed = false;
+  appState.specialGroup = null;
 
-  document.getElementById('infoBox').innerHTML = `
-    <b style="color:#22c55e">Board Complete</b><br><br>
-    Please touch some grass.
-  `;
-
-  const heat = document.getElementById('heatmap').children;
-  for(let i=0;i<25;i++){
-    heat[i].style.background = '';
-    heat[i].textContent = '';
-  }
-
-  document.getElementById('confidence').textContent = "";
-  document.getElementById('modeLabel').textContent = "";
-
+  renderUI();
   return;
 }
 
@@ -795,46 +835,34 @@ const tracking = getShipTracking();
 if(!huntMode && remainingBlue === 0){
   currentMode = MODE.ALL_HITS;
 
-  clearRecommendations();
+  appState.probs = null;
+  appState.topMoves = null;
+  appState.isTrueEndgame = false;
+  appState.isGuaranteed = false;
+  appState.specialGroup = null;
 
-  document.getElementById('infoBox').innerHTML = `
-    <b style="color:#22c55e">There are no blue tiles left.</b><br><br>
-    Every remaining tile is guaranteed to be a hit.
-  `;
-
-  const heat = document.getElementById('heatmap').children;
-  for(let i=0;i<25;i++){
-    heat[i].style.background = '';
-    heat[i].textContent = '';
-  }
-
-  document.getElementById('confidence').textContent = "";
-  document.getElementById('modeLabel').textContent = "";
-
+  renderUI();
   return;
 }
 
 if(huntMode && tracking.incomplete === 0 && tracking.unfound === 0){
   currentMode = MODE.ALL_MISSES;
 
-  clearRecommendations();
+  appState.probs = null;
+  appState.topMoves = null;
+  appState.isTrueEndgame = false;
+  appState.isGuaranteed = false;
+  appState.specialGroup = null;
 
-  document.getElementById('infoBox').innerHTML = `
-    <b style="color:#22c55e">All Ships Complete</b><br><br>
-    All remaining tiles are guaranteed blue.
-  `;
+  renderUI();
+  return;
+}
 
   const heat = document.getElementById('heatmap').children;
   for(let i=0;i<25;i++){
     heat[i].style.background = '';
     heat[i].textContent = '';
   }
-
-  document.getElementById('confidence').textContent = "";
-  document.getElementById('modeLabel').textContent = "";
-
-  return;
-}
 
 let filled = grid.filter(x => x && x !== 'miss').length;
 
@@ -894,8 +922,11 @@ for(let i=0;i<25;i++) if(board[i]) counts[i]++;
   }
 
   let probs=counts.map(c=>valid?c/valid:0);
-  renderHeatmap(probs);
-  highlightRecommendations(probs);
+appState.probs = probs;
+appState.topMoves = null;
+appState.isTrueEndgame = false;
+appState.isGuaranteed = false;
+appState.specialGroup = null;
 
 document.getElementById('confidence').textContent =
   "Valid boards: " + valid + " (searched " + attempts + ")";
@@ -963,6 +994,15 @@ let probs = counts.map(c => valid ? c/valid : 0);
 
 renderHeatmap(probs);
 
+if(valid === 2){
+  appState.probs = probs;
+  appState.topMoves = [];
+  appState.isTrueEndgame = true;
+  appState.isGuaranteed = false;
+  appState.specialGroup = null;
+  return;
+}
+
 let hits = grid.filter(x=>x && x!=='miss').length;
 let misses = grid.filter(x=>x==='miss').length;
 let huntMode = (hits >= threshold) && (misses >= 3);
@@ -998,7 +1038,7 @@ let bestGroup = bestGroups.flatMap(g => g.group);
 let isSymmetric = huntMode && bestGroup.length >= 3;
 
 if(isSymmetric){
-  highlightAvoidGroup(bestGroup);
+  appState.specialGroup = bestGroup;
 } else {
   highlightRecommendations(probs);
 }
@@ -1009,6 +1049,7 @@ document.getElementById('confidence').textContent =
 document.getElementById('confidence').textContent =
   "Exact boards: " + valid;
 }
+
 function render(){
   const play=document.getElementById('playBoard').children;
   for(let i=0;i<25;i++){
@@ -1104,23 +1145,73 @@ function getShipTracking(){
   return { incomplete, unfound };
 }
 
+function renderUI(){
+  if(appState.probs){
+    renderHeatmap(appState.probs);
+  }
+
+  clearRecommendations();
+
+  if(appState.specialGroup){
+    highlightAvoidGroup(appState.specialGroup);
+  } else if(appState.probs){
+    highlightRecommendations(appState.probs);
+  }
+
+  updateInfoBox(
+    appState.probs,
+    appState.topMoves,
+    appState.isTrueEndgame,
+    appState.isGuaranteed
+  );
+}
+
 function updateInfoBox(probs = null, topMoves = null, isTrueEndgame = false, isGuaranteed = false, isForced = false){
-  if(currentMode !== MODE.NORMAL) return;
+
   const box = document.getElementById('infoBox');
+
+if(currentMode === MODE.TOUCH_GRASS){
+  box.innerHTML = `
+    <b style="color:#22c55e">Board Complete</b><br><br>
+    Please touch some grass.
+  `;
+  return;
+}
+
+if(currentMode === MODE.ALL_HITS){
+  box.innerHTML = `
+    <b style="color:#22c55e">There are no blue tiles left.</b><br><br>
+    Every remaining tile is guaranteed to be a hit.
+  `;
+  return;
+}
+
+if(currentMode === MODE.ALL_MISSES){
+  box.innerHTML = `
+    <b style="color:#22c55e">All Ships Complete</b><br><br>
+    All remaining tiles are guaranteed blue.
+  `;
+  return;
+}
+
   let messages = [];
 
   if(rareCount === null){
     messages.push("Select how many colors are in play.");
   } 
 
-if(!selectedColor){
-  messages.push("Select a color to begin filling in the board.");
-messages.push(""); 
-}
+const hasStarted = grid.some(c => c !== null);
 
-if(rareCount === null || !selectedColor){
-  messages.push("$OT will not end at 4 blue clicks if you have not yet found 5 non-blue tiles. If you have found 5, then you risk losing in one click if you have also found 3 blues. You can change extra chance risk level to 4 to give yourself a 1 click safety net in this calculator, but you will eliminate fewer possible boards this way.");
-  messages.push("");
+if(!hasStarted){
+  if(!selectedColor){
+    messages.push("Select a color to begin filling in the board.");
+    messages.push("");
+  }
+
+  if(rareCount === null || !selectedColor){
+    messages.push("$OT will not end at 4 blue clicks if you have not yet found 5 non-blue tiles. If you have found 5, then you risk losing in one click if you have also found 3 blues. You can change extra chance risk level to 4 to give yourself a 1 click safety net in this calculator, but you will eliminate fewer possible boards this way.");
+    messages.push("");
+  }
 }
 
   if(probs && topMoves && topMoves.length > 0){
@@ -1145,14 +1236,52 @@ if(move.p === 1){
   return;
 }
 
-  if(isTrueEndgame){
-    messages.push("<b>Game-ending situation detected</b>");
-    messages.push("There are exactly 2 possible boards remaining.");
-    messages.push("It cannot be determined which move is best.");
+if(isTrueEndgame){
 
-    box.innerHTML = messages.join("<br>");
-    return;
-  }
+  const play = document.getElementById('playBoard').children;
+  clearRecommendations();
+
+  let candidates = probs
+    .map((p,i)=>({p,i}))
+    .filter(x=>!grid[x.i]);
+
+  candidates.forEach(c=>{
+    play[c.i].classList.add('recommended-final');
+  });
+
+  let coords = candidates.map(c=>{
+    let [r,c2] = indexToCoord(c.i);
+    return `<span class="coord-good">Row ${r+1}, Col ${c2+1}</span>`;
+  }).join("<br>");
+
+  messages.push(`
+    <div style="
+      padding:12px;
+      border-radius:10px;
+      background:#1f2937;
+      border:1px solid #374151;
+    ">
+      <div style="color:#a855f7; font-weight:bold; font-size:16px;">
+        Final Move
+      </div>
+
+      <div style="margin-top:6px;">
+        Only <b>2 possible boards</b> remain.
+      </div>
+
+      <div style="margin-top:8px; color:#22c55e;">
+        Choose either:
+      </div>
+
+      <div style="margin-top:4px;">
+        ${coords}
+      </div>
+    </div>
+  `);
+
+  box.innerHTML = messages.join("<br>");
+  return;
+}
 
     let hits = grid.filter(x=>x && x!=='miss').length;
     let misses = grid.filter(x=>x==='miss').length;
@@ -1278,6 +1407,7 @@ function clearRecommendations(){
     c.classList.remove('recommended-safe');
 	c.classList.remove('recommended-avoid'); 
 	c.classList.remove('recommended-equal');
+	c.classList.remove('recommended-final');
     c.textContent = "";
   }
 }
@@ -1431,8 +1561,10 @@ if(guaranteed){
 lastTopMoves = [guaranteed];
 lastGuaranteed = true;
 
-updateInfoBox(probs, [guaranteed], false, true);
-  return;
+appState.probs = probs;
+appState.topMoves = [guaranteed];
+appState.isGuaranteed = true;
+return;
 }
 
   if(!huntMode){
@@ -1489,7 +1621,9 @@ if(safest) allMoves.push(safest);
 lastProbs = probs;
 lastTopMoves = allMoves;
 
-updateInfoBox(probs, allMoves);
+appState.probs = probs;
+appState.topMoves = allMoves;
+appState.isGuaranteed = false;
 }
 
 createBoards();
