@@ -1009,7 +1009,7 @@ let huntMode = (hits >= threshold) && (misses >= 3);
 
 let candidates = probs
   .map((p,i)=>({p,i}))
-  .filter(x=>!grid[x.i]);
+  .filter(x => !grid[x.i] && x.p > 0); 
 
 let guaranteed = huntMode
   ? candidates.find(c => c.p === 1) 
