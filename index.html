@@ -444,6 +444,8 @@ function updateBoardLock(){
 
 function placeColor(i){
   if(!selectedColor || rareCount===null) return;
+ 
+  currentMode = MODE.NORMAL;
   
   if(!configLocked){
   configLocked = true;
@@ -454,6 +456,15 @@ function placeColor(i){
   placementsCache = {};
   if(!isStateValid()){grid[i]=null;return;}
   render();
+  
+  appState = {
+  probs: null,
+  topMoves: null,
+  isTrueEndgame: false,
+  isGuaranteed: false,
+  specialGroup: null
+};
+  
   runSimulation();
   updateColorAvailability();
   renderUI();
