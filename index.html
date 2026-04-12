@@ -1243,7 +1243,7 @@ if(isTrueEndgame){
 
   let candidates = probs
     .map((p,i)=>({p,i}))
-    .filter(x=>!grid[x.i]);
+.filter(x => !grid[x.i] && x.p > 0);
 
   candidates.forEach(c=>{
     play[c.i].classList.add('recommended-final');
@@ -1266,7 +1266,7 @@ if(isTrueEndgame){
       </div>
 
       <div style="margin-top:6px;">
-        Only <b>2 possible boards</b> remain.
+        Only ${topMoves.length + 1} possible boards remain.
       </div>
 
       <div style="margin-top:8px; color:#22c55e;">
