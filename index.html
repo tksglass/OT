@@ -446,6 +446,7 @@ function placeColor(i){
   if(!selectedColor || rareCount===null) return;
  
   currentMode = MODE.NORMAL;
+  placementsCache = {};
   
   if(!configLocked){
   configLocked = true;
@@ -686,7 +687,11 @@ function backtrackPlace(ships, placementsMap, index, board){
   let ship=ships[index];
   let options=shuffle([...placementsMap[ship]]);
   for(let opt of options){
-if(index > 0 && ships[index] === ships[index-1]){
+function getShipType(ship){
+  return ship.startsWith('rare_') ? 'rare' : ship;
+}
+
+if(index > 0 && getShipType(ships[index]) === getShipType(ships[index-1])){
   let prevShip = ships[index-1];
 
   let prevCells = board
@@ -700,7 +705,7 @@ if(index > 0 && ships[index] === ships[index-1]){
     if(minCurr < minPrev) continue;
   }
 }
-   if(opt.some(i => board[i] && board[i] !== ship)) continue;
+   if(opt.some(i => board[i])) continue;
     opt.forEach(i=>board[i]=ship);
     if(backtrackPlace(ships, placementsMap, index+1, board)) return true;
     opt.forEach(i=>board[i]=null);
@@ -808,6 +813,8 @@ if(color.startsWith('rare_')){
 
 function runSimulation(){
 
+placementsCache = {};
+
 let isFull = grid.every(cell => cell !== null);
 
 if(isFull){
@@ -823,7 +830,10 @@ if(isFull){
   return;
 }
 
-if(currentMode !== MODE.NORMAL) return;
+if(currentMode !== MODE.NORMAL){
+  placementsCache = {};
+  return;
+}
 
 lastSpecialGroup = null;
 lastGuaranteed = false;
@@ -831,10 +841,16 @@ placementsCache = {};
 
 clearRecommendations();
 
-  if(!isStateValid()){
-    showError("Current board is invalid.");
-    return;
-  }
+if(!isStateValid()){
+  appState.probs = null;
+  appState.topMoves = null;
+  appState.isTrueEndgame = false;
+  appState.isGuaranteed = false;
+  appState.specialGroup = null;
+
+  showError("Current board is invalid.");
+  return;
+}
   
   let hits = grid.filter(x=>x && x!=='miss').length;
 let misses = grid.filter(x=>x==='miss').length;
@@ -901,8 +917,11 @@ if(b.startsWith('rare_') && !a.startsWith('rare_')) return -1;
 });
 
 ships.sort((a,b)=>{
-  return getPlacementsCached(a).length - getPlacementsCached(b).length;
+  let scoreA = getPlacementsCached(a).length - getKnownCells(a).length * 5;
+  let scoreB = getPlacementsCached(b).length - getKnownCells(b).length * 5;
+  return scoreA - scoreB;
 });
+
     let placementsMap={};
     let ok=true;
 
@@ -1028,7 +1047,15 @@ let guaranteed = huntMode
   : candidates.find(c => c.p === 0);  
 
 if(guaranteed){
+
+  appState.probs = probs;
+  appState.topMoves = null;
+  appState.isTrueEndgame = false;
+  appState.isGuaranteed = true;
+  appState.specialGroup = null;
+
   highlightRecommendations(probs);
+
   document.getElementById('confidence').textContent =
     "Exact boards: " + valid;
   return;  
@@ -1049,9 +1076,45 @@ let bestGroup = bestGroups.flatMap(g => g.group);
 
 let isSymmetric = huntMode && bestGroup.length >= 3;
 
+function getTileShipSizes(allBoards){
+  let tileMap = {};
+
+  for(let i = 0; i < 25; i++){
+    if(grid[i]) continue;
+
+    let sizes = new Set();
+
+    for(let b of allBoards){
+      let color = b[i];
+      if(!color) continue;
+
+      sizes.add(getShipSize(color));
+    }
+
+    tileMap[i] = [...sizes].sort((a,b)=>b-a); 
+  }
+
+  return tileMap;
+}
+
 if(isSymmetric){
-  appState.specialGroup = bestGroup;
+  const tileShipSizes = getTileShipSizes(allBoards);
+
+  appState.probs = probs;
+  appState.topMoves = null;
+  appState.isTrueEndgame = false;
+  appState.isGuaranteed = false;
+  appState.specialGroup = {
+    tiles: bestGroup,
+    shipMap: tileShipSizes
+  };
 } else {
+  appState.probs = probs;
+  appState.topMoves = null;
+  appState.isTrueEndgame = false;
+  appState.isGuaranteed = false;
+  appState.specialGroup = null;
+
   highlightRecommendations(probs);
 }
 
@@ -1170,15 +1233,22 @@ function renderUI(){
     highlightRecommendations(appState.probs);
   }
 
-  updateInfoBox(
-    appState.probs,
-    appState.topMoves,
-    appState.isTrueEndgame,
-    appState.isGuaranteed
-  );
+updateInfoBox();
 }
 
-function updateInfoBox(probs = null, topMoves = null, isTrueEndgame = false, isGuaranteed = false, isForced = false){
+function updateInfoBox(){
+
+ if(appState.specialGroup){
+    return;
+  }
+
+const {
+  probs,
+  topMoves,
+  isTrueEndgame,
+  isGuaranteed,
+  specialGroup
+} = appState;
 
   const box = document.getElementById('infoBox');
 
@@ -1400,16 +1470,6 @@ if(hasStarted){
   }
 
 if(messages.length === 0){
-
-  if(lastSpecialGroup){
-    highlightAvoidGroup(lastSpecialGroup);
-    return;
-  }
-
-  if(lastProbs && lastTopMoves){
-    updateInfoBox(lastProbs, lastTopMoves, false, lastGuaranteed);
-    return;
-  }
   messages.push("Ready. Place colors to begin analysis.");
 }
   box.innerHTML = messages.join("<br>");
@@ -1469,6 +1529,17 @@ for(let i=0;i<25;i++){
   document.getElementById('confidence').textContent = "";
   document.getElementById('modeLabel').textContent = "";
 currentMode = MODE.NORMAL;
+
+appState = {
+  probs: null,
+  topMoves: null,
+  isTrueEndgame: false,
+  isGuaranteed: false,
+  specialGroup: null
+};
+
+lastSpecialGroup = null;
+
 updateInfoBox();
 
   updateBoardLock();
@@ -1511,39 +1582,64 @@ function getEquivalenceGroups(allBoards){
   return Object.values(patterns);
 }
 
-function highlightAvoidGroup(bestGroup){
-if(currentMode !== MODE.NORMAL) return;
+function highlightAvoidGroup(data){
+  if(currentMode !== MODE.NORMAL) return;
+
   const play = document.getElementById('playBoard').children;
   clearRecommendations();
-  
-  lastSpecialGroup = bestGroup;
 
-  let bestSet = new Set(bestGroup);
+  let bestSet = new Set(data.tiles);
 
   for(let i=0;i<25;i++){
     if(grid[i]) continue;
 
-  if(bestSet.has(i)){
-    play[i].classList.add('recommended-equal');
-  } else {
-    play[i].classList.add('recommended-avoid');
-    play[i].textContent = "✕";
+    if(bestSet.has(i)){
+      play[i].classList.add('recommended-equal');
+    } else {
+      play[i].classList.add('recommended-avoid');
+      play[i].textContent = "✕";
+    }
   }
+
+  renderEquivalenceInfo(data);
 }
+
+function renderEquivalenceInfo(data){
   const box = document.getElementById('infoBox');
 
-let coords = bestGroup.map(i=>{
-  let [r,c] = indexToCoord(i);
-  return `<span class="coord-good">Row ${r+1}, Col ${c+1}</span>`;
-}).join("<br>");
+  let grouped = {};
 
-box.innerHTML = `
-  <b style="color:#22c55e">Equivalent Best Moves</b><br>
-  These tiles are statistically identical. No tile can be inferred to be better given this board state.<br><br>
-  Choose ANY of:<br>
-  ${coords}<br><br>
-  <span style="color:#ff6b6b">Avoid all tiles marked ✕</span>
-`;
+  data.tiles.forEach(i=>{
+    let sizes = data.shipMap[i] || [];
+
+    sizes.forEach(size=>{
+      if(!grouped[size]) grouped[size] = [];
+      grouped[size].push(i);
+    });
+  });
+
+  let html = `
+    <b style="color:#22c55e">Equivalent Best Moves</b><br>
+    These tiles are statistically the same, but have different expected value.<br><br>
+  `;
+
+  Object.keys(grouped)
+    .sort((a,b)=>a-b)
+    .forEach(size=>{
+      let coords = grouped[size].map(i=>{
+        let [r,c] = indexToCoord(i);
+        return `<span class="coord-good">Row ${r+1}, Col ${c+1}</span>`;
+      }).join("<br>");
+
+      html += `
+        <b>Size ${size} Ship:</b><br>
+        ${coords}<br><br>
+      `;
+    });
+
+  html += `<span style="color:#ff6b6b">Avoid all tiles marked ✕</span>`;
+
+  box.innerHTML = html;
 }
 
 function highlightRecommendations(probs){
@@ -1586,7 +1682,9 @@ return;
   if(!huntMode){
     candidates.forEach(c=>{
       const p = c.p;
-      const entropy = p * (1 - p);
+      const entropy = (p === 0 || p === 1)
+		? 0
+		: -p * Math.log2(p) - (1 - p) * Math.log2(1 - p);
 
       const [r,col] = indexToCoord(c.i);
       const checker = (r + col) % 2 === 0 ? 1 : 0.8;
