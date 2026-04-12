@@ -149,6 +149,10 @@
   margin-bottom: 0;
 }
 
+#undoBtn {
+  margin-right: 30px;
+}
+
 #infoBox {
   width: 100%;
   background: #111827;
@@ -338,6 +342,7 @@ const MODE = {
 
 let currentMode = MODE.NORMAL;
 
+let history = [];
 let rareCount=null;
 let selectedColor=null;
 let threshold=5;
@@ -375,9 +380,19 @@ if(!hasStarted){
 
 window.setRare = function(n,btn){
   if(configLocked) return;
-  rareCount=n;
+
+  rareCount = n;
+
+  let newThreshold = (n >= 4) ? 4 : 5;
+  threshold = newThreshold;
+
+  document.getElementById('th4').classList.remove('active-btn');
+  document.getElementById('th5').classList.remove('active-btn');
+  document.getElementById('th' + newThreshold).classList.add('active-btn');
+
   document.querySelectorAll('[onclick^="setRare"]').forEach(b=>b.classList.remove('active-btn'));
   btn.classList.add('active-btn');
+
   updateBoardLock();
 
   if(!isStateValid()){
@@ -452,6 +467,13 @@ function placeColor(i){
   configLocked = true;
   lockConfigUI();
 }
+
+history.push({
+  grid: [...grid],
+  selectedColor,
+  appState: JSON.parse(JSON.stringify(appState)),
+  currentMode
+});
 
   grid[i]=grid[i]===selectedColor?null:selectedColor;
   placementsCache = {};
@@ -603,7 +625,7 @@ function getShipList(){
   ships.push(...used);
 
   for(let i = 0; i < remaining; i++){
-    ships.push('rare_' + i);
+   ships.push(`rare_${i}`);
   }
 
   return ships;
@@ -1120,9 +1142,6 @@ if(isSymmetric){
 
 document.getElementById('confidence').textContent =
   "Exact boards: " + valid;
-
-document.getElementById('confidence').textContent =
-  "Exact boards: " + valid;
 }
 
 function render(){
@@ -1501,12 +1520,31 @@ function showError(msg){
   document.getElementById('confidence').textContent = "Invalid board state";
 }
 
+window.undoMove = function(){
+  if(history.length === 0) return;
+
+  const prev = history.pop();
+
+  grid = [...prev.grid];
+  selectedColor = prev.selectedColor;
+  appState = prev.appState;
+  currentMode = prev.currentMode;
+
+  placementsCache = {};
+
+  render();
+  updateColorAvailability();
+  renderUI();
+  updateBoardLock();
+};
+
 window.resetAll = function(){
 
   grid = Array(25).fill(null);
   selectedColor = null;
   rareCount = null;
   threshold = 5;
+  history = [];
 
   document.querySelectorAll('.color-btn').forEach(b=>{
     b.classList.remove('selected','disabled');
@@ -1749,7 +1787,9 @@ updateInfoBox();
 
 </div>
 <div class="reset-container">
+  <button id="undoBtn" onclick="undoMove()">Undo</button>
   <button id="resetBtn" onclick="resetAll()">Reset</button>
+</div>
 </div>
 </body>
 </html>
