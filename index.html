@@ -165,6 +165,15 @@
   margin-bottom: 20px;
 }
 
+#hashInput {
+  flex: 1;           
+  min-width: 0;         
+  padding: 6px;
+  border-radius: 6px;
+  border: 1px solid #9ca3af;
+  background: #fff;
+}
+
 .reset-container {
   display: flex;
   justify-content: center;
@@ -361,6 +370,22 @@ let appState = {
   specialGroup: null
 };
 
+const COLOR_TO_ID = {
+  teal: 0,
+  green: 1,
+  yellow: 2,
+  orange: 3,
+  red: 4,
+  black: 5,
+  white: 6,
+  rainbow: 7,
+  miss: 8
+};
+
+const ID_TO_COLOR = Object.fromEntries(
+  Object.entries(COLOR_TO_ID).map(([k,v]) => [v,k])
+);
+
 window.selectColor = function(c,e){
 if(e.target.classList.contains('disabled')) return;
 
@@ -377,6 +402,24 @@ if(!hasStarted){
 }
 
 }
+
+window.generateHash = function(){
+  const input = document.getElementById('hashInput');
+  input.value = encodeGame();
+  input.select();
+};
+
+window.loadHash = function(){
+  const input = document.getElementById('hashInput');
+  const hash = input.value.trim();
+
+  if(!hash){
+    showError("Enter a code first");
+    return;
+  }
+
+  loadFromHash(hash);
+};
 
 window.setRare = function(n,btn){
   if(configLocked) return;
@@ -470,7 +513,8 @@ function placeColor(i){
 
 history.push({
   grid: [...grid],
-  selectedColor,
+  rareCount,
+  threshold,
   appState: JSON.parse(JSON.stringify(appState)),
   currentMode
 });
@@ -1526,11 +1570,25 @@ window.undoMove = function(){
   const prev = history.pop();
 
   grid = [...prev.grid];
-  selectedColor = prev.selectedColor;
-  appState = prev.appState;
+  rareCount = prev.rareCount;
+  threshold = prev.threshold;
+  appState = JSON.parse(JSON.stringify(prev.appState));
   currentMode = prev.currentMode;
 
   placementsCache = {};
+
+  document.querySelectorAll('[onclick^="setRare"]').forEach(b=>{
+    b.classList.remove('active-btn');
+  });
+  if(rareCount !== null){
+    document
+      .querySelector(`[onclick="setRare(${rareCount},this)"]`)
+      ?.classList.add('active-btn');
+  }
+
+  document.getElementById('th4').classList.remove('active-btn');
+  document.getElementById('th5').classList.remove('active-btn');
+  document.getElementById('th' + threshold)?.classList.add('active-btn');
 
   render();
   updateColorAvailability();
@@ -1618,6 +1676,167 @@ function getEquivalenceGroups(allBoards){
   }
 
   return Object.values(patterns);
+}
+
+function createBitWriter(){
+  let bits = [];
+
+  return {
+    write(value, bitCount){
+      for(let i = bitCount - 1; i >= 0; i--){
+        bits.push((value >> i) & 1);
+      }
+    },
+
+    toBase64(){
+      let bytes = [];
+
+      for(let i = 0; i < bits.length; i += 8){
+        let byte = 0;
+        for(let j = 0; j < 8; j++){
+          byte <<= 1;
+          if(bits[i + j]) byte |= 1;
+        }
+        bytes.push(byte);
+      }
+
+      return btoa(String.fromCharCode(...bytes));
+    }
+  };
+}
+
+function extractMovesFromHistory(){
+  let moves = [];
+
+  for(let i = 1; i < history.length; i++){
+    let prev = history[i-1].grid;
+    let curr = history[i].grid;
+
+    for(let j = 0; j < 25; j++){
+      if(prev[j] !== curr[j]){
+        moves.push({
+          index: j,
+          color: curr[j]
+        });
+        break;
+      }
+    }
+  }
+
+  if(history.length > 0){
+    let prev = history[history.length - 1].grid;
+    let curr = grid;
+
+    for(let j = 0; j < 25; j++){
+      if(prev[j] !== curr[j]){
+        moves.push({
+          index: j,
+          color: curr[j]
+        });
+        break;
+      }
+    }
+  }
+
+  return moves;
+}
+
+function encodeGame(){
+  const moves = extractMovesFromHistory();
+  const writer = createBitWriter();
+
+  writer.write(1, 3);
+
+  writer.write(rareCount, 3);
+  writer.write(threshold === 5 ? 1 : 0, 1);
+
+  writer.write(moves.length, 5);
+
+  moves.forEach(m => {
+    writer.write(m.index, 5);
+    writer.write(COLOR_TO_ID[m.color], 4);
+  });
+
+  return writer.toBase64();
+}
+
+function decodeGame(hash){
+  const reader = createBitReader(hash);
+
+  const version = reader.read(3);
+  const rareCountVal = reader.read(3);
+  const thresholdVal = reader.read(1) ? 5 : 4;
+
+  const moveCount = reader.read(5);
+
+  let moves = [];
+
+  for(let i = 0; i < moveCount; i++){
+    const index = reader.read(5);
+    const colorId = reader.read(4);
+
+    moves.push({
+      index,
+      color: ID_TO_COLOR[colorId]
+    });
+  }
+
+  return { moves, rareCountVal, thresholdVal };
+}
+
+function loadFromHash(hash){
+  try {
+    const { moves, rareCountVal, thresholdVal } = decodeGame(hash);
+
+    resetAll();
+
+rareCount = rareCountVal;
+threshold = thresholdVal;
+
+document.querySelectorAll('[onclick^="setRare"]').forEach(b=>{
+  b.classList.remove('active-btn');
+});
+
+document
+  .querySelector(`[onclick="setRare(${rareCountVal},this)"]`)
+  ?.classList.add('active-btn');
+
+document.getElementById('th4').classList.remove('active-btn');
+document.getElementById('th5').classList.remove('active-btn');
+document.getElementById('th' + thresholdVal).classList.add('active-btn');
+
+    moves.forEach(m => {
+      selectedColor = m.color;
+      placeColor(m.index);
+    });
+
+  } catch(e){
+    showError("Invalid code");
+  }
+}
+
+function createBitReader(base64){
+  const binary = atob(base64);
+  let bits = [];
+
+  for(let i = 0; i < binary.length; i++){
+    let byte = binary.charCodeAt(i);
+    for(let j = 7; j >= 0; j--){
+      bits.push((byte >> j) & 1);
+    }
+  }
+
+  let index = 0;
+
+  return {
+    read(bitCount){
+      let value = 0;
+      for(let i = 0; i < bitCount; i++){
+        value = (value << 1) | bits[index++];
+      }
+      return value;
+    }
+  };
 }
 
 function highlightAvoidGroup(data){
@@ -1785,10 +2004,27 @@ updateInfoBox();
 };
 </script>
 
-</div>
 <div class="reset-container">
   <button id="undoBtn" onclick="undoMove()">Undo</button>
   <button id="resetBtn" onclick="resetAll()">Reset</button>
+ 
+</div>
+
+<div class="topbar" style="margin-top:15px;">
+  <div class="section" style="width:100%;">
+    <span class="label">Share Code:</span>
+
+    <input id="hashInput" placeholder="Paste or generate code">
+
+    <button class="active-btn" onclick="generateHash()">Generate</button>
+    <button onclick="loadHash()">Load</button>
+  </div>
+
+</div>
+
+</div>
+</div>
+</div>
 </div>
 </div>
 </body>
