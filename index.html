@@ -362,7 +362,6 @@ const MAX_MISSES = 5;
 let lastSpecialGroup = null;
 let placementsCache = {};
 let configLocked = false;
-let isLoadingHash = false;
 let appState = {
   probs: null,
   topMoves: null,
@@ -533,11 +532,9 @@ history.push({
   specialGroup: null
 };
   
-if(!isLoadingHash){
   runSimulation();
   updateColorAvailability();
   renderUI();
-}
 }
 
 function getPlacementsCached(color){
@@ -1793,52 +1790,53 @@ function loadFromHash(hash){
 
     resetAll();
 
-    isLoadingHash = true;
+rareCount = rareCountVal;
+threshold = thresholdVal;
 
-    rareCount = rareCountVal;
-    threshold = thresholdVal;
+document.querySelectorAll('[onclick^="setRare"]').forEach(b=>{
+  b.classList.remove('active-btn');
+});
 
-    document.querySelectorAll('[onclick^="setRare"]').forEach(b=>{
-      b.classList.remove('active-btn');
-    });
+document
+  .querySelector(`[onclick="setRare(${rareCountVal},this)"]`)
+  ?.classList.add('active-btn');
 
-    document
-      .querySelector(`[onclick="setRare(${rareCountVal},this)"]`)
-      ?.classList.add('active-btn');
-
-    document.getElementById('th4').classList.remove('active-btn');
-    document.getElementById('th5').classList.remove('active-btn');
-    document.getElementById('th' + thresholdVal).classList.add('active-btn');
+document.getElementById('th4').classList.remove('active-btn');
+document.getElementById('th5').classList.remove('active-btn');
+document.getElementById('th' + thresholdVal).classList.add('active-btn');
 
     moves.forEach(m => {
-
-      history.push({
-        grid: [...grid],
-        rareCount,
-        threshold,
-        appState: JSON.parse(JSON.stringify(appState)),
-        currentMode
-      });
-
-      grid[m.index] = grid[m.index] === m.color ? null : m.color;
+      selectedColor = m.color;
+      placeColor(m.index);
     });
-
-    if(moves.length > 0){
-      configLocked = true;
-      lockConfigUI();
-    }
-
-    isLoadingHash = false;
-
-    render();
-    updateColorAvailability();
-    runSimulation();
-    renderUI();
-    updateBoardLock();
 
   } catch(e){
     showError("Invalid code");
   }
+}
+
+function createBitReader(base64){
+  const binary = atob(base64);
+  let bits = [];
+
+  for(let i = 0; i < binary.length; i++){
+    let byte = binary.charCodeAt(i);
+    for(let j = 7; j >= 0; j--){
+      bits.push((byte >> j) & 1);
+    }
+  }
+
+  let index = 0;
+
+  return {
+    read(bitCount){
+      let value = 0;
+      for(let i = 0; i < bitCount; i++){
+        value = (value << 1) | bits[index++];
+      }
+      return value;
+    }
+  };
 }
 
 function highlightAvoidGroup(data){
