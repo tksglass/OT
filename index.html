@@ -362,6 +362,7 @@ const MAX_MISSES = 5;
 let lastSpecialGroup = null;
 let placementsCache = {};
 let configLocked = false;
+let isLoadingHash = false;
 let appState = {
   probs: null,
   topMoves: null,
@@ -1690,15 +1691,15 @@ function createBitWriter(){
 
     toBase64(){
       let bytes = [];
-
-      for(let i = 0; i < bits.length; i += 8){
-        let byte = 0;
-        for(let j = 0; j < 8; j++){
-          byte <<= 1;
-          if(bits[i + j]) byte |= 1;
-        }
-        bytes.push(byte);
-      }
+	  
+for(let i = 0; i < bits.length; i += 8){
+  let byte = 0;
+  for(let j = 0; j < 8; j++){
+    byte <<= 1;
+    if(i + j < bits.length && bits[i + j]) byte |= 1;
+  }
+  bytes.push(byte);
+}
 
       return btoa(String.fromCharCode(...bytes));
     }
@@ -1786,37 +1787,52 @@ function decodeGame(hash){
 
 function loadFromHash(hash){
   try {
+    isLoadingHash = true; 
+
     const { moves, rareCountVal, thresholdVal } = decodeGame(hash);
 
     resetAll();
 
-rareCount = rareCountVal;
-threshold = thresholdVal;
+    rareCount = rareCountVal;
+    threshold = thresholdVal;
 
-document.querySelectorAll('[onclick^="setRare"]').forEach(b=>{
-  b.classList.remove('active-btn');
-});
+    document.querySelectorAll('[onclick^="setRare"]').forEach(b=>{
+      b.classList.remove('active-btn');
+    });
 
-document
-  .querySelector(`[onclick="setRare(${rareCountVal},this)"]`)
-  ?.classList.add('active-btn');
+    document
+      .querySelector(`[onclick="setRare(${rareCountVal},this)"]`)
+      ?.classList.add('active-btn');
 
-document.getElementById('th4').classList.remove('active-btn');
-document.getElementById('th5').classList.remove('active-btn');
-document.getElementById('th' + thresholdVal).classList.add('active-btn');
+    document.getElementById('th4').classList.remove('active-btn');
+    document.getElementById('th5').classList.remove('active-btn');
+    document.getElementById('th' + thresholdVal).classList.add('active-btn');
 
     moves.forEach(m => {
       selectedColor = m.color;
       placeColor(m.index);
     });
 
+    isLoadingHash = false;
+
+    runSimulation();    
+    renderUI();
+
   } catch(e){
+    isLoadingHash = false;
     showError("Invalid code");
   }
 }
 
 function createBitReader(base64){
-  const binary = atob(base64);
+  function safeBase64Decode(str){
+  str = str.replace(/-/g, '+').replace(/_/g, '/');
+  while(str.length % 4) str += '=';
+  return atob(str);
+}
+
+const binary = safeBase64Decode(base64);
+
   let bits = [];
 
   for(let i = 0; i < binary.length; i++){
