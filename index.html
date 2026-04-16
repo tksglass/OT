@@ -880,6 +880,8 @@ if(color.startsWith('rare_')){
 
 function runSimulation(){
 
+  if(isLoadingHash) return;
+
 placementsCache = {};
 
 let isFull = grid.every(cell => cell !== null);
