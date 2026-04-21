@@ -19,7 +19,7 @@
   min-height: 100vh;
 }
   h2, h3 { margin: 5px 0; }
-  .topbar { background: #d1d5db; padding: 15px; border-radius: 12px; box-shadow: 0 4px 10px rgba(0,0,0,0.1); margin-bottom: 20px; }
+  .topbar { background: #d1d5db; flex-wrap: nowrap; padding: 15px; border-radius: 12px; box-shadow: 0 4px 10px rgba(0,0,0,0.1); margin-bottom: 20px; }
   .section { margin-bottom: 12px; }
   .label { font-weight: bold; margin-right: 10px; }
 
@@ -37,17 +37,28 @@
   button:hover { background: #ccc; }
   .active-btn { background: #4CAF50; color: white; }
 
-.boards {
-  display: flex;
-  justify-content: space-between;
-  gap: 20px;
-}
-
 .header-bar {
   display: flex;
   justify-content: space-between;
   align-items: center;
   margin-bottom: 10px;
+}
+
+.action-group {
+  display: flex;
+  gap: 10px;
+  margin-left: auto;
+}
+
+.boards {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  flex: 1;           
+}
+
+#heatmap .cell {
+  transition: background-color 0.5s ease;
 }
 
 .credit {
@@ -60,14 +71,56 @@
   box-shadow: 0 2px 6px rgba(0,0,0,0.1);
 }
 
+.layout {
+  display: flex;
+  gap: 20px;
+  align-items: stretch;
+}
+
+.left-column {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  flex: 1;
+}
+
+#infoBox {
+  flex: 1;
+  width: 100%;
+  background: #111827;
+  color: #f9fafb;
+  padding: 15px;
+  border-radius: 12px;
+  font-size: 14px;
+  line-height: 1.5;
+  box-shadow: 0 4px 10px rgba(0,0,0,0.2);
+}
+
 .topbar, #infoBox {
+width: auto;
+  box-sizing: border-box;
+}
+
+.sharebar {
+  max-width: 720px;
   width: 100%;
   box-sizing: border-box;
+  margin-top: 15px;
+  padding: 15px;
+  border-radius: 12px;
+  background: #d1d5db;
+  box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+
+  max-width: 720px;   
+  margin-left: auto;
+  margin-right: auto;
 }
 
 .board-container {
   background: #f3f4f6;
   padding: 15px;
+   display: flex;
+   flex-direction: column;
   border-radius: 12px;
   box-shadow: 0 4px 10px rgba(0,0,0,0.1);
   flex: 1;
@@ -133,6 +186,64 @@
   font-weight: bold;
 }
 
+@keyframes alertPulse {
+  0% {
+    box-shadow: 0 0 0 0 rgba(168, 85, 247, 0.7);
+    transform: scale(1);
+  }
+  50% {
+    box-shadow: 0 0 0 14px rgba(168, 85, 247, 0);
+    transform: scale(1.02);
+  }
+  100% {
+    box-shadow: 0 0 0 0 rgba(168, 85, 247, 0);
+    transform: scale(1);
+  }
+}
+
+.info-alert {
+  background: linear-gradient(
+    90deg,
+    #1f2937,
+    #2a1f3d,
+    #1f2937
+  );
+  background-size: 200% 100%;
+  animation: alertPulse 1.2s ease-in-out infinite,
+             shimmer 2.5s linear infinite;
+}
+
+@keyframes shimmer {
+  0% { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
+
+.info-card {
+  margin-top: 10px;
+  padding: 12px;
+  border-radius: 10px;
+  background: #1f2937;
+  border: 1px solid #374151;
+}
+
+.info-card-title {
+  font-weight: bold;
+  font-size: 16px;
+  margin-bottom: 6px;
+}
+
+.info-purple { border-color: #6d28d9; }
+.info-purple .info-card-title { color: #a855f7; }
+
+.info-gold { border-color: #b45309; }
+.info-gold .info-card-title { color: gold; }
+
+.info-green { border-color: #065f46; }
+.info-green .info-card-title { color: #22c55e; }
+
+.info-blue { border-color: #1e3a8a; }
+.info-blue .info-card-title { color: #60a5fa; }
+
 .topbar {
   display: flex;
   flex-wrap: wrap;
@@ -150,19 +261,12 @@
 }
 
 #undoBtn {
-  margin-right: 30px;
+  background: #374151;
+  color: #f9fafb;
 }
 
-#infoBox {
-  width: 100%;
-  background: #111827;
-  color: #f9fafb;
-  padding: 15px;
-  border-radius: 12px;
-  font-size: 14px;
-  line-height: 1.5;
-  box-shadow: 0 4px 10px rgba(0,0,0,0.2);
-  margin-bottom: 20px;
+#undoBtn:hover {
+  background: #4b5563;
 }
 
 #hashInput {
@@ -181,14 +285,8 @@
 }
 
 #resetBtn {
-  padding: 10px 20px;
-  font-size: 14px;
   background: #ef4444;
   color: white;
-  border-radius: 8px;
-  border: none;
-  cursor: pointer;
-  box-shadow: 0 3px 8px rgba(0,0,0,0.2);
 }
 
 #resetBtn:hover {
@@ -215,6 +313,8 @@
   box-shadow: 0 0 10px 4px rgba(34,197,94,0.8);
 }
 
+
+
 .recommended-avoid {
   outline: 3px solid #ef4444;
   position: relative;
@@ -233,8 +333,16 @@
 }
 
 .recommended-equal::after {
-  content: "●";
+  content: attr(data-label); 
   color: #22c55e;
+  font-weight: bold;
+  position: absolute;
+  font-size: 16px;
+}
+
+.recommended-size2::after {
+  content: "2";
+  color: orange;
   font-weight: bold;
   position: absolute;
   font-size: 16px;
@@ -275,17 +383,26 @@
       <button onclick="setRare(4,this)">8</button>
       <button onclick="setRare(5,this)">9</button>
     </div>
+	
+<div class="action-group">
+  <button id="undoBtn" onclick="undoMove()">Undo</button>
+  <button onclick="redoMove()">Redo</button>
+  <button id="resetBtn" onclick="resetAll()">Reset</button>
+</div>
 
     <div class="section">
-      <span class="label">Extra Chance Risk Level:</span>
+      <span class="label">Extra Chance Level:</span>
       <button id="th4" onclick="setThreshold(4,this)">4</button>
       <button id="th5" class="active-btn" onclick="setThreshold(5,this)">5</button>
     </div>
 
   </div>
+  
 </div>
 
-<div id="infoBox"></div>
+<div class="layout">
+
+  <div class="left-column">
 
 <div class="boards">
 
@@ -322,6 +439,13 @@
     <div id="confidence" class="confidence"></div>
     <div id="modeLabel" class="confidence"></div>
   </div>
+  
+    </div>
+
+</div> 
+<div id="infoBox"></div>
+
+</div> 
 
 </div>
 
@@ -351,6 +475,8 @@ const MODE = {
 
 let currentMode = MODE.NORMAL;
 
+let moves = [];
+let redoStack = [];
 let history = [];
 let rareCount=null;
 let selectedColor=null;
@@ -492,6 +618,15 @@ function lockConfigUI(){
 
 }
 
+function makeCard(title, content, colorClass){
+  return `
+    <div class="info-card ${colorClass}">
+      <div class="info-card-title">${title}</div>
+      <div>${content}</div>
+    </div>
+  `;
+}
+
 function updateBoardLock(){
   const board=document.getElementById('playBoard');
   if(selectedColor && rareCount!==null){
@@ -520,9 +655,37 @@ history.push({
   currentMode
 });
 
-  grid[i]=grid[i]===selectedColor?null:selectedColor;
-  placementsCache = {};
-  if(!isStateValid()){grid[i]=null;return;}
+let prevColor = grid[i];
+let newColor = (grid[i] === selectedColor ? null : selectedColor);
+
+grid[i] = newColor;
+
+moves.push({
+  index: i,
+  prevColor,
+  newColor
+});
+
+redoStack = [];
+
+placementsCache = {};
+
+if(!isStateValid()){
+  grid[i] = prevColor;
+  return;
+}
+
+for(let s of getShipList()){
+  if(getPlacementsCached(s).length === 0){
+    grid[i] = prevColor;
+    return;
+  }
+}
+
+if(!hasAnyValidBoard()){
+  grid[i] = prevColor;
+  return;
+}
   render();
   
   appState = {
@@ -690,6 +853,41 @@ function getDirectionConstraint(cells){
   return 'any';
 }
 
+function hasAnyValidBoard(){
+  let ships = getShipList();
+
+  let placementsMap = {};
+  for(let s of ships){
+    let p = getPlacementsCached(s);
+    if(p.length === 0) return false;
+    placementsMap[s] = p;
+  }
+
+  let board = Array(25).fill(null);
+
+  function dfs(index){
+    if(index === ships.length){
+      return isBoardValid(board, true);
+    }
+
+    let ship = ships[index];
+
+    for(let opt of placementsMap[ship]){
+      if(opt.some(i => board[i] && board[i] !== ship)) continue;
+
+      opt.forEach(i => board[i] = ship);
+
+      if(dfs(index + 1)) return true;
+
+      opt.forEach(i => board[i] = null);
+    }
+
+    return false;
+  }
+
+  return dfs(0);
+}
+
 function getValidPlacements(color){
   let size=getShipSize(color);
   let placements=[];
@@ -781,19 +979,31 @@ if(index > 0 && getShipType(ships[index]) === getShipType(ships[index-1])){
 }
 
 function mcmcStep(board, ships, placementsMap){
-  let newBoard=[...board];
-  let ship=ships[Math.floor(Math.random()*ships.length)];
-  let known=getKnownCells(ship);
-  for(let i=0;i<25;i++){
-    if(newBoard[i]===ship && !known.includes(i)) newBoard[i]=null;
+  let newBoard = [...board];
+
+  let k = 2 + Math.floor(Math.random() * 2);
+  let chosen = shuffle([...ships]).slice(0, k);
+
+  for(let ship of chosen){
+    let known = getKnownCells(ship);
+
+    for(let i=0;i<25;i++){
+      if(newBoard[i] === ship && !known.includes(i)){
+        newBoard[i] = null;
+      }
+    }
+
+    let options = shuffle([...placementsMap[ship]]);
+
+    for(let opt of options){
+      if(opt.some(i => newBoard[i] && newBoard[i] !== ship)) continue;
+
+      opt.forEach(i => newBoard[i] = ship);
+      break;
+    }
   }
-  let options=shuffle([...placementsMap[ship]]);
-  for(let opt of options){
-    if(opt.some(i=>newBoard[i] && newBoard[i]!==ship)) continue;
-    opt.forEach(i=>newBoard[i]=ship);
-    return newBoard;
-  }
-  return board;
+
+  return newBoard;
 }
 
 function isBoardValid(board, final=false){
@@ -878,11 +1088,27 @@ if(color.startsWith('rare_')){
   return true;
 }
 
+function scoreBoard(board){
+  let score = 0;
+
+  for(let i=0;i<25;i++){
+    if(grid[i] && grid[i] !== 'miss'){
+      if(board[i] === grid[i]) score += 2;
+    }
+  }
+
+  return score;
+}
+
 function runSimulation(){
 
   if(isLoadingHash) return;
+  
+  const hasStarted = grid.some(c => c !== null);
 
-placementsCache = {};
+if(!hasStarted){
+  return;
+}
 
 let isFull = grid.every(cell => cell !== null);
 
@@ -968,57 +1194,110 @@ let filled = grid.filter(x => x && x !== 'miss').length;
 let valid=0;
 let attempts=0;
 let seen = new Set();
+const NUM_CHAINS = 4;
 
-if(filled >= 6){
+let placedTiles = grid.filter(x => x !== null).length;
+
+let exactThreshold = 4;
+
+if(rareCount === 4){
+  exactThreshold = 3;
+}
+else if(rareCount === 3){ 
+  exactThreshold = 2;
+}
+else if(rareCount <= 2){
+  exactThreshold = 0; 
+}
+
+if(placedTiles >= exactThreshold){
   runExactSolver();
   return;
 }
 
-while(attempts < 5000 && valid < 2500){
+while(attempts < 15000 && valid < 5000){
   attempts++;
-let ships = getShipList();
 
-ships.sort((a,b)=>{
-  if(a === b) return 0;
-if(a.startsWith('rare_') && !b.startsWith('rare_')) return 1;
-if(b.startsWith('rare_') && !a.startsWith('rare_')) return -1;
-  return 0;
-});
+  let ships = getShipList();
 
-ships.sort((a,b)=>{
-  let scoreA = getPlacementsCached(a).length - getKnownCells(a).length * 5;
-  let scoreB = getPlacementsCached(b).length - getKnownCells(b).length * 5;
-  return scoreA - scoreB;
-});
+  ships.sort((a,b)=>{
+    if(a === b) return 0;
+    if(a.startsWith('rare_') && !b.startsWith('rare_')) return 1;
+    if(b.startsWith('rare_') && !a.startsWith('rare_')) return -1;
+    return 0;
+  });
 
-    let placementsMap={};
-    let ok=true;
+  ships.sort((a,b)=>{
+    let scoreA = getPlacementsCached(a).length - getKnownCells(a).length * 5;
+    let scoreB = getPlacementsCached(b).length - getKnownCells(b).length * 5;
+    return scoreA - scoreB;
+  });
 
-ships.forEach(s=>{
-  let p = getPlacementsCached(s);
-      if(p.length===0) ok=false;
-      placementsMap[s]=p;
-    });
+  let placementsMap={};
+  let ok=true;
 
-    if(!ok) continue;
+  ships.forEach(s=>{
+    let p = getPlacementsCached(s);
+    if(p.length===0) ok=false;
+    placementsMap[s]=p;
+  });
 
-    let board=Array(25).fill(null);
+  if(!ok) continue;
+  
+  let chains = [];
+
+  for(let c=0; c<NUM_CHAINS; c++){
+    let board = Array(25).fill(null);
+
     if(!backtrackPlace(ships, placementsMap, 0, board)) continue;
 
-    for(let step=0;step<50;step++){
-      board=mcmcStep(board, ships, placementsMap);
-    }
-
-    if(!isBoardValid(board, true)) continue;
-
-let key = board.join(',');
-
-if(seen.has(key)) continue;
-seen.add(key);
-valid++;
-
-for(let i=0;i<25;i++) if(board[i]) counts[i]++;
+    chains.push({
+      board,
+      temperature: 0.7 + Math.random() * 0.6
+    });
   }
+
+  if(chains.length === 0) continue;
+
+  let burnIn = 20;
+
+  for(let step=0; step<30; step++){
+
+    for(let chain of chains){
+
+      let newBoard = mcmcStep(chain.board, ships, placementsMap);
+
+      let oldScore = scoreBoard(chain.board);
+      let newScore = scoreBoard(newBoard);
+
+      if(newScore >= oldScore){
+        chain.board = newBoard;
+      } else {
+        let prob = Math.exp((newScore - oldScore) / chain.temperature);
+        if(Math.random() < prob){
+          chain.board = newBoard;
+        }
+      }
+
+      chain.temperature *= 0.98;
+    }
+  }
+
+  for(let chain of chains){
+
+    let board = chain.board;
+
+    if(valid % 200 === 0 && !isBoardValid(board, true)) continue;
+
+    let key = board.join(',');
+    if(seen.has(key)) continue;
+    seen.add(key);
+
+    valid++;
+
+    for(let i=0;i<25;i++) if(board[i]) counts[i]++;
+  }
+}
 
   let probs=counts.map(c=>valid?c/valid:0);
 appState.probs = probs;
@@ -1028,7 +1307,7 @@ appState.isGuaranteed = false;
 appState.specialGroup = null;
 
 document.getElementById('confidence').textContent =
-  "Valid boards: " + valid + " (searched " + attempts + ")";
+  "Valid boards: " + valid + " (in " + attempts + " chains)";
 }
 
 function runExactSolver(){
@@ -1140,10 +1419,27 @@ let groupData = groups.map(group => {
 let maxP = Math.max(...groupData.map(g => g.p));
 
 let bestGroups = groupData.filter(g => g.p === maxP);
-
 let bestGroup = bestGroups.flatMap(g => g.group);
 
-let isSymmetric = huntMode && bestGroup.length >= 3;
+const tileShipSizes = getTileShipSizes(allBoards);
+
+const partialTiles = getPartialShipTiles();
+
+let size2Tiles = Object.keys(tileShipSizes)
+  .map(i => parseInt(i))
+  .filter(i => {
+    if(grid[i] !== null) return false;
+    if(bestGroup.includes(i)) return false;
+
+    const isSize2 = tileShipSizes[i].includes(2);
+    if(!isSize2) return false;
+
+    if(partialTiles.has(i)) return true;
+
+    return probs[i] >= 0.65;
+  });
+
+let isSymmetric = huntMode && bestGroup.length >= 2;
 
 function getTileShipSizes(allBoards){
   let tileMap = {};
@@ -1173,10 +1469,12 @@ if(isSymmetric){
   appState.topMoves = null;
   appState.isTrueEndgame = false;
   appState.isGuaranteed = false;
-  appState.specialGroup = {
-    tiles: bestGroup,
-    shipMap: tileShipSizes
-  };
+appState.specialGroup = {
+  tiles: bestGroup,
+  size2Tiles: size2Tiles,
+  shipMap: tileShipSizes,
+  probs: probs
+};
 } else {
   appState.probs = probs;
   appState.topMoves = null;
@@ -1207,6 +1505,30 @@ function render(){
     }
     if(grid[i]==='miss') play[i].style.background='#3b82f6';
   }
+}
+
+function getPartialShipTiles(){
+  let partialTiles = new Set();
+
+  for(let color in SHIPS){
+    if(getShipSize(color) !== 2) continue;
+
+    let known = getKnownCells(color);
+
+    if(known.length === 1){
+      let placements = getPlacementsCached(color);
+
+      placements.forEach(p => {
+        p.forEach(i => {
+          if(grid[i] === null){
+            partialTiles.add(i);
+          }
+        });
+      });
+    }
+  }
+
+  return partialTiles;
 }
 
 function getRemainingBlueTiles(){
@@ -1287,26 +1609,56 @@ function getShipTracking(){
 }
 
 function renderUI(){
+
+  const hasStarted = grid.some(c => c !== null);
+
+  clearRecommendations();
+
+  if(rareCount !== null && !hasStarted){
+    highlightStartingCorners();
+  }
+
   if(appState.probs){
     renderHeatmap(appState.probs);
   }
 
-  clearRecommendations();
-
-  if(appState.specialGroup){
-    highlightAvoidGroup(appState.specialGroup);
-  } else if(appState.probs){
-    highlightRecommendations(appState.probs);
+  if(hasStarted){
+    if(appState.specialGroup){
+      highlightAvoidGroup(appState.specialGroup);
+    } else if(appState.probs){
+      highlightRecommendations(appState.probs);
+    }
   }
 
-updateInfoBox();
+  updateInfoBox();
 }
 
 function updateInfoBox(){
 
- if(appState.specialGroup){
-    return;
+let hits = grid.filter(x => x && x !== 'miss').length;
+let misses = grid.filter(x => x === 'miss').length;
+
+let missEndsGameState = (hits >= 5) && (misses >= 3);
+
+let missCard = missEndsGameState
+  ? `
+    <div class="info-card info-purple info-alert">
+      <div class="info-card-title">Miss Ends The Game</div>
+      <div>Any blue tile will end the run.</div>
+    </div>
+  `
+  : "";
+
+if(appState.specialGroup){
+  renderEquivalenceInfo(appState.specialGroup);
+
+  if(missEndsGameState){
+    const box = document.getElementById('infoBox');
+    box.innerHTML += missCard;
   }
+
+  return;
+}
 
 const {
   probs,
@@ -1319,26 +1671,29 @@ const {
   const box = document.getElementById('infoBox');
 
 if(currentMode === MODE.TOUCH_GRASS){
-  box.innerHTML = `
-    <b style="color:#22c55e">Board Complete</b><br><br>
-    Please touch some grass.
-  `;
+box.innerHTML = makeCard(
+  "Board Complete",
+  "Please touch some grass.",
+  "info-green"
+);
   return;
 }
 
 if(currentMode === MODE.ALL_HITS){
-  box.innerHTML = `
-    <b style="color:#22c55e">There are no blue tiles left.</b><br><br>
-    Every remaining tile is guaranteed to be a hit.
-  `;
+box.innerHTML = makeCard(
+  "All Hits",
+  "No blue tiles remain.<br>Every remaining tile is a guaranteed hit.",
+  "info-green"
+);
   return;
 }
 
 if(currentMode === MODE.ALL_MISSES){
-  box.innerHTML = `
-    <b style="color:#22c55e">All Ships Complete</b><br><br>
-    All remaining tiles are guaranteed blue.
-  `;
+box.innerHTML = makeCard(
+  "All Misses",
+  "All ships are complete.<br>Every remaining tile is blue.",
+  "info-blue"
+);
   return;
 }
 
@@ -1350,6 +1705,10 @@ if(currentMode === MODE.ALL_MISSES){
 
 const hasStarted = grid.some(c => c !== null);
 
+if(missEndsGameState){
+  messages.push(missCard);
+}
+
 if(!hasStarted){
   if(!selectedColor){
     messages.push("Select a color to begin filling in the board.");
@@ -1357,7 +1716,7 @@ if(!hasStarted){
   }
 
   if(rareCount === null || !selectedColor){
-    messages.push("$OT will not end at 4 blue clicks if you have not yet found 5 non-blue tiles. If you have found 5, then you risk losing in one click if you have also found 3 blues. You can change extra chance risk level to 4 to give yourself a 1 click safety net in this calculator, but you will eliminate fewer possible boards this way.");
+    messages.push("$OT will not end at 4 blue clicks if you have not yet found 5 non-blue tiles. If you have found 5, then you risk losing in one click if you have also found 3 blues. You can change extra chance level to 4 to give yourself a 1 click safety net in this calculator, but you will eliminate fewer possible boards this way.");
     messages.push("");
   }
 }
@@ -1370,15 +1729,15 @@ if(!hasStarted){
 
 const coordText = `<span style="color:#a855f7; font-weight:bold">Row ${r+1}, Col ${c+1}</span>`;
 
-messages.push("<b style='color:#a855f7'>Guaranteed Move</b>");
-
-if(move.p === 1){
-  messages.push(`${coordText} is guaranteed to be a NON-BLUE (hit).`);
-} else if(move.p === 0){
-  messages.push(`${coordText} is guaranteed to be BLUE (miss).`);
-} else {
-  messages.push(`${coordText} has inconsistent probability (debug).`);
-}
+messages.push(
+  makeCard(
+    "Guaranteed Move",
+    move.p === 1
+      ? `${coordText}<br>is guaranteed to be NON-BLUE (hit)`
+      : `${coordText}<br>is guaranteed to be BLUE (miss)`,
+    "info-purple"
+  )
+);
 
   box.innerHTML = messages.join("<br>");
   return;
@@ -1410,26 +1769,16 @@ let coords = candidates.map(i=>{
   return `<span class="coord-good">Row ${r+1}, Col ${c2+1}</span>`;
 }).join("<br>");
 
-  messages.push(`
-    <div style="
-      padding:12px;
-      border-radius:10px;
-      background:#1f2937;
-      border:1px solid #374151;
-    ">
-      <div style="color:#a855f7; font-weight:bold; font-size:16px;">
-        Final Move
-      </div>
-
-      <div style="margin-top:8px; color:#22c55e;">
-        Choose either:
-      </div>
-
-      <div style="margin-top:4px;">
-        ${coords}
-      </div>
-    </div>
-  `);
+messages.push(
+  makeCard(
+    "Final Move",
+    `
+      <span style="color:#22c55e">Choose either:</span><br><br>
+      ${coords}
+    `,
+    "info-purple"
+  )
+);
 
   box.innerHTML = messages.join("<br>");
   return;
@@ -1444,9 +1793,6 @@ let coords = candidates.map(i=>{
     const describeMove = (move, label, color) => {
 	let riskText = "";
 
-if(move.missEndsGame){
-  riskText = "<br><span style='color:#ff6b6b'>Miss ends the game</span>";
-}
 const p = move.p;
 const hitChance = huntMode ? p : (1 - p);
 const hitLabel = huntMode ? "Non-blue chance" : "Blue chance";
@@ -1475,40 +1821,55 @@ if(safeMove){
   const coordText = `<span style="color:#22c55e; font-weight:bold">Row ${r+1}, Col ${c+1}</span>`;
 
 const safeLabel = huntMode ? "Most Likely Not Blue" : "Most Likely Blue";
-messages.push(`<b style='color:#22c55e'>${safeLabel}</b>`);
-  messages.push(
-    `${coordText}
+messages.push(
+  makeCard(
+    safeLabel,
+    `
+    ${coordText}
     → Statistically safest option
     → ${((huntMode ? safeMove.p : (1 - safeMove.p)) * 100).toFixed(1)}% ${huntMode ? "non-blue chance" : "blue chance"}
-    ${safeMove.missEndsGame ? "<br><span style='color:#ff6b6b'>Miss ends the game</span>" : ""}`
-  );
-  messages.push("");
+    `,
+    "info-green"
+  )
+);
 }	
 
     let best = topMoves[0];
     if(best){
-      messages.push("<b style='color:#a855f7'>Most Informative</b>");
-      messages.push(describeMove(best, "Most informative", "#a855f7"));
+let explanation = "";
 
-      let safest = [...probs.map((p,i)=>({p,i}))]
-        .filter(x=>!grid[x.i])
-        .sort((a,b)=>a.p-b.p)[0];
+let safest = [...probs.map((p,i)=>({p,i}))]
+  .filter(x=>!grid[x.i])
+  .sort((a,b)=>a.p-b.p)[0];
 
-      if(!huntMode && safest && safest.i !== best.i){
+if(!huntMode && safest && safest.i !== best.i){
   const bestE = 2 * best.p * (1 - best.p);
   const safeE = 2 * safest.p * (1 - safest.p);
 
-  messages.push(
-    `Chosen over safest tile because it eliminates more possibilities 
-    (${(bestE*100).toFixed(1)}% vs ${(safeE*100).toFixed(1)}%).`
-  );
+  explanation = `<br>
+    <i style="color:#9ca3af">
+      Chosen over safest tile because it eliminates more possible boards 
+    </i>`;
 }
+
+messages.push(
+  makeCard(
+    "Most Informative",
+    describeMove(best, "", "#a855f7") + explanation,
+    "info-purple"
+  )
+);
     }
 
     let second = topMoves[1];
     if(second){
-      messages.push("<br><b style='color:gold'>Alternative</b>");
-      messages.push(describeMove(second, "Second most informative", "gold"));
+messages.push(
+  makeCard(
+    "Alternative",
+    describeMove(second, "", "gold"),
+    "info-gold"
+  )
+);
 
     }
 	
@@ -1518,25 +1879,49 @@ if(hasStarted){
   const tracking = getShipTracking();
   const remainingBlue = getRemainingBlueTiles();
 
-  messages.push("");
-  messages.push(
-    `<b>Ship Status</b><br>
-    Incomplete found ships remaining: ${tracking.incomplete}<br>
-    Unfound simulated ships: ${tracking.unfound}<br>
-    Remaining blue tiles: ${remainingBlue}`
-  );
+ messages.push(
+  makeCard(
+    "Ship Status",
+    `
+    • Incomplete found ships remaining: ${tracking.incomplete}<br>
+    • Unfound simulated ships: ${tracking.unfound}<br>
+    • Remaining blue tiles: ${remainingBlue}
+    `,
+    "info-blue"
+  )
+);
 }
-	
-    messages.push("");
-    if(huntMode){
-      messages.push("Mode: Hunting — targeting likely non-blue positions.");
-    } else {
-      messages.push("Mode: Exploration — maximizing information.");
-    }
-  }
 
+messages.push(
+  makeCard(
+    huntMode ? "Mode: Hunting" : "Mode: Exploration",
+    huntMode
+      ? "Finding non-blues. Heatmap represents % chance of non-blue in a given tile based on all valid boards."
+      : "Finding blues. Heatmap represents % chance of blue in a given tile based on all valid boards.",
+    huntMode ? "info-purple" : "info-blue"
+  )
+);
+}
 if(messages.length === 0){
   messages.push("Ready. Place colors to begin analysis.");
+}
+
+
+if(rareCount !== null && !hasStarted){
+  messages.push("");
+  messages.push(`
+    <div style="
+      margin-top:10px;
+      padding:10px;
+      border-radius:8px;
+      background:#1f2937;
+      border:1px solid #374151;
+    ">
+      <b style="color:#22c55e">Optimal Opening</b><br>
+      All four corners are equally optimal starting moves.<br>
+	  You could also click dead center to immediately eliminate the most number of possible boards, but this has lower blue chance.
+    </div>
+  `);
 }
   box.innerHTML = messages.join("<br>");
 }
@@ -1549,7 +1934,9 @@ function clearRecommendations(){
     c.classList.remove('recommended-safe');
 	c.classList.remove('recommended-avoid'); 
 	c.classList.remove('recommended-equal');
+	c.classList.remove('recommended-size2');
 	c.classList.remove('recommended-final');
+	c.removeAttribute("data-label");
     c.textContent = "";
   }
 }
@@ -1570,31 +1957,56 @@ function showError(msg){
 window.undoMove = function(){
   if(history.length === 0) return;
 
+  const lastMove = moves.pop();
+  if(!lastMove) return;
+
+  redoStack.push(lastMove);
+
   const prev = history.pop();
 
-  grid = [...prev.grid];
-  rareCount = prev.rareCount;
-  threshold = prev.threshold;
-  appState = JSON.parse(JSON.stringify(prev.appState));
-  currentMode = prev.currentMode;
+  grid = prev ? [...prev.grid] : Array(25).fill(null);
+  rareCount = prev?.rareCount ?? null;
+  threshold = prev?.threshold ?? 5;
+  appState = prev?.appState ? JSON.parse(JSON.stringify(prev.appState)) : {
+    probs: null,
+    topMoves: null,
+    isTrueEndgame: false,
+    isGuaranteed: false,
+    specialGroup: null
+  };
+  currentMode = prev?.currentMode ?? MODE.NORMAL;
 
   placementsCache = {};
 
-  document.querySelectorAll('[onclick^="setRare"]').forEach(b=>{
-    b.classList.remove('active-btn');
-  });
-  if(rareCount !== null){
-    document
-      .querySelector(`[onclick="setRare(${rareCount},this)"]`)
-      ?.classList.add('active-btn');
-  }
+  render();
+  updateColorAvailability();
+  runSimulation();
+  renderUI();
+  updateBoardLock();
+};
 
-  document.getElementById('th4').classList.remove('active-btn');
-  document.getElementById('th5').classList.remove('active-btn');
-  document.getElementById('th' + threshold)?.classList.add('active-btn');
+window.redoMove = function(){
+  if(redoStack.length === 0) return;
+
+  const move = redoStack.pop();
+
+  history.push({
+    grid: [...grid],
+    rareCount,
+    threshold,
+    appState: JSON.parse(JSON.stringify(appState)),
+    currentMode
+  });
+
+  grid[move.index] = move.newColor;
+
+  moves.push(move);
+
+  placementsCache = {};
 
   render();
   updateColorAvailability();
+  runSimulation();
   renderUI();
   updateBoardLock();
 };
@@ -1649,6 +2061,8 @@ clearRecommendations();
 
 lastProbs = null;
 lastTopMoves = null;
+moves = [];
+redoStack = [];
 
 configLocked = false;
 
@@ -1694,58 +2108,22 @@ function createBitWriter(){
     toBase64(){
       let bytes = [];
 	  
-for(let i = 0; i < bits.length; i += 8){
-  let byte = 0;
-  for(let j = 0; j < 8; j++){
-    byte <<= 1;
-    if(i + j < bits.length && bits[i + j]) byte |= 1;
-  }
-  bytes.push(byte);
-}
+      for(let i = 0; i < bits.length; i += 8){
+        let byte = 0;
+        for(let j = 0; j < 8; j++){
+          byte <<= 1;
+          if(i + j < bits.length && bits[i + j]) byte |= 1;
+        }
+        bytes.push(byte);
+      }
 
       return btoa(String.fromCharCode(...bytes));
     }
   };
 }
 
-function extractMovesFromHistory(){
-  let moves = [];
-
-  for(let i = 1; i < history.length; i++){
-    let prev = history[i-1].grid;
-    let curr = history[i].grid;
-
-    for(let j = 0; j < 25; j++){
-      if(prev[j] !== curr[j]){
-        moves.push({
-          index: j,
-          color: curr[j]
-        });
-        break;
-      }
-    }
-  }
-
-  if(history.length > 0){
-    let prev = history[history.length - 1].grid;
-    let curr = grid;
-
-    for(let j = 0; j < 25; j++){
-      if(prev[j] !== curr[j]){
-        moves.push({
-          index: j,
-          color: curr[j]
-        });
-        break;
-      }
-    }
-  }
-
-  return moves;
-}
-
 function encodeGame(){
-  const moves = extractMovesFromHistory();
+  const movesToEncode = moves;
   const writer = createBitWriter();
 
   writer.write(1, 3);
@@ -1753,12 +2131,12 @@ function encodeGame(){
   writer.write(rareCount, 3);
   writer.write(threshold === 5 ? 1 : 0, 1);
 
-  writer.write(moves.length, 5);
+  writer.write(movesToEncode.length, 5);
 
-  moves.forEach(m => {
-    writer.write(m.index, 5);
-    writer.write(COLOR_TO_ID[m.color], 4);
-  });
+movesToEncode.forEach(m => {
+  writer.write(m.index, 5);
+  writer.write(COLOR_TO_ID[m.newColor], 4);
+});
 
   return writer.toBase64();
 }
@@ -1809,11 +2187,14 @@ function loadFromHash(hash){
     document.getElementById('th4').classList.remove('active-btn');
     document.getElementById('th5').classList.remove('active-btn');
     document.getElementById('th' + thresholdVal).classList.add('active-btn');
+	
+moves.forEach(m => {
+  selectedColor = m.color;
 
-    moves.forEach(m => {
-      selectedColor = m.color;
-      placeColor(m.index);
-    });
+  placeColor(m.index);
+});
+
+redoStack = [];
 
     isLoadingHash = false;
 
@@ -1863,18 +2244,29 @@ function highlightAvoidGroup(data){
   const play = document.getElementById('playBoard').children;
   clearRecommendations();
 
-  let bestSet = new Set(data.tiles);
+let bestSet = new Set(data.tiles);
+let size2Set = new Set(data.size2Tiles || []);
 
-  for(let i=0;i<25;i++){
-    if(grid[i]) continue;
+for(let i=0;i<25;i++){
+  if(grid[i]) continue;
 
-    if(bestSet.has(i)){
-      play[i].classList.add('recommended-equal');
-    } else {
-      play[i].classList.add('recommended-avoid');
-      play[i].textContent = "✕";
-    }
+if(bestSet.has(i)){
+  play[i].classList.add('recommended-equal');
+
+  let sizes = (data.shipMap[i] || []).sort((a,b)=>b-a);
+
+  if(sizes.length){
+    play[i].setAttribute("data-label", sizes.join("/"));
   }
+}
+  else if(size2Set.has(i)){
+	play[i].classList.add('recommended-size2');
+  }
+  else {
+    play[i].classList.add('recommended-avoid');
+    play[i].textContent = "✕";
+  }
+}
 
   renderEquivalenceInfo(data);
 }
@@ -1882,39 +2274,101 @@ function highlightAvoidGroup(data){
 function renderEquivalenceInfo(data){
   const box = document.getElementById('infoBox');
 
-  let grouped = {};
+  const bestTiles = data.tiles || [];
+  const size2Tiles = data.size2Tiles || [];
+  const probs = data.probs || [];
 
-  data.tiles.forEach(i=>{
-    let sizes = data.shipMap[i] || [];
-
-    sizes.forEach(size=>{
-      if(!grouped[size]) grouped[size] = [];
-      grouped[size].push(i);
-    });
-  });
-
-  let html = `
-    <b style="color:#22c55e">Equivalent Best Moves</b><br>
-    These tiles are statistically the same, but have different expected value.<br><br>
+  let content = `
+    Best move tiles are statistically identical and have a green border.<br>
+    Unbordered tiles labeled "2" may also be part of a rare ship with reasonably high certainty. See below.<br><br>
   `;
 
-  Object.keys(grouped)
-    .sort((a,b)=>a-b)
-    .forEach(size=>{
-      let coords = grouped[size].map(i=>{
-        let [r,c] = indexToCoord(i);
-        return `<span class="coord-good">Row ${r+1}, Col ${c+1}</span>`;
-      }).join("<br>");
+  if(bestTiles.length){
+    const bestProb = (probs[bestTiles[0]] * 100).toFixed(1);
 
-      html += `
-        <b>Size ${size} Ship:</b><br>
-        ${coords}<br><br>
+    let coords = bestTiles.map(i=>{
+      let [r,c] = indexToCoord(i);
+      return `<span class="coord-good">Row ${r+1}, Col ${c+1}</span>`;
+    }).join("<br>");
+
+    content += `
+      <b>Best Moves (~${bestProb}%)</b><br>
+      ${coords}<br><br>
+    `;
+  }
+
+if(size2Tiles.length){
+
+  const partialTilesSet = getPartialShipTiles();
+
+  let partialSize2 = size2Tiles
+    .filter(i => partialTilesSet.has(i))
+    .map(i => ({ i, p: probs[i] }))
+    .sort((a,b) => b.p - a.p);
+
+  let unknownSize2 = size2Tiles
+    .filter(i => !partialTilesSet.has(i))
+    .map(i => ({ i, p: probs[i] }))
+    .sort((a,b) => b.p - a.p);
+
+  if(partialSize2.length){
+    let coords = partialSize2.map(({i,p}) => {
+      let [r,c] = indexToCoord(i);
+
+      return `
+        <span style="color:gold">
+          Row ${r+1}, Col ${c+1}
+        </span>
+        (${(p*100).toFixed(1)}%)
       `;
-    });
+    }).join("<br>");
 
-  html += `<span style="color:#ff6b6b">Avoid all tiles marked ✕</span>`;
+    content += `
+      <b>Incomplete Rare Ship(s)</b><br>
+      ${coords}<br><br>
+    `;
+  }
 
-  box.innerHTML = html;
+  if(unknownSize2.length){
+    let coords = unknownSize2.map(({i,p}) => {
+      let [r,c] = indexToCoord(i);
+
+      return `
+        <span style="color:gold">
+          Row ${r+1}, Col ${c+1}
+        </span>
+        (${(p*100).toFixed(1)}%)
+      `;
+    }).join("<br>");
+
+    content += `
+      <b>Unfound Rare Ship(s)</b><br>
+      ${coords}<br><br>
+    `;
+  }
+}
+
+  content += `<span style="color:#ff6b6b">Avoid all tiles marked ✕</span>`;
+
+  box.innerHTML = makeCard(
+    "Equivalent Best Moves",
+    content,
+    "info-green"
+  );
+}
+
+function highlightStartingCorners(){
+  const play = document.getElementById('playBoard').children;
+
+  clearRecommendations();
+
+  const corners = [0, 4, 20, 24];
+
+  corners.forEach(i => {
+    if(!grid[i]) { 
+      play[i].classList.add('recommended-equal');
+    }
+  });
 }
 
 function highlightRecommendations(probs){
@@ -1932,7 +2386,6 @@ let candidates = probs
   .map((p,i)=>({
     p,
     i,
-    missEndsGame: missEndsGame
   }))
   .filter(x=>!grid[x.i]);
 	
@@ -1954,21 +2407,29 @@ appState.isGuaranteed = true;
 return;
 }
 
-  if(!huntMode){
-    candidates.forEach(c=>{
-      const p = c.p;
-      const entropy = (p === 0 || p === 1)
-		? 0
-		: -p * Math.log2(p) - (1 - p) * Math.log2(1 - p);
+ if(!huntMode){
+  candidates.forEach(c=>{
+    const p = c.p;
 
-      const [r,col] = indexToCoord(c.i);
-      const checker = (r + col) % 2 === 0 ? 1 : 0.8;
+    const entropy = (p === 0 || p === 1)
+      ? 0
+      : -p * Math.log2(p) - (1 - p) * Math.log2(1 - p);
 
-      c.score = entropy * checker;
-    });
+    const asymmetry = Math.abs(p - 0.5);
 
-    candidates.sort((a,b)=> b.score - a.score);
-  } else {
+    const collapseBonus = Math.max(p, 1 - p);
+
+    const [r,col] = indexToCoord(c.i);
+    const checker = (r + col) % 2 === 0 ? 1 : 0.8;
+
+    c.score =
+      entropy * 0.7 +       
+      asymmetry * 0.6 +       
+      collapseBonus * 0.3;    
+  });
+
+  candidates.sort((a,b)=> b.score - a.score);
+} else {
     candidates.sort((a,b)=> b.p - a.p);
   }
 
@@ -2022,13 +2483,7 @@ updateInfoBox();
 };
 </script>
 
-<div class="reset-container">
-  <button id="undoBtn" onclick="undoMove()">Undo</button>
-  <button id="resetBtn" onclick="resetAll()">Reset</button>
- 
-</div>
-
-<div class="topbar" style="margin-top:15px;">
+<div class="sharebar">
   <div class="section" style="width:100%;">
     <span class="label">Share Code:</span>
 
@@ -2037,13 +2492,7 @@ updateInfoBox();
     <button class="active-btn" onclick="generateHash()">Generate</button>
     <button onclick="loadHash()">Load</button>
   </div>
-
 </div>
 
-</div>
-</div>
-</div>
-</div>
-</div>
 </body>
 </html>
