@@ -680,6 +680,8 @@ function placeColor(i){
 
 if(forced && !grid[i]){
   selectedColor = forced;
+	document.querySelectorAll('.color-btn').forEach(b=>{
+    b.classList.remove('selected','disabled');
 }
  
   currentMode = MODE.NORMAL;
