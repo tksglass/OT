@@ -675,6 +675,12 @@ function updateBoardLock(){
 
 function placeColor(i){
   if(!selectedColor || rareCount===null) return;
+
+	const forced = appState.forcedTiles?.[i];
+
+if(forced && !grid[i]){
+  selectedColor = forced;
+}
  
   currentMode = MODE.NORMAL;
   placementsCache = {};
