@@ -1285,13 +1285,13 @@ const NUM_CHAINS = 4;
 
 let placedTiles = grid.filter(x => x !== null).length;
 
-let exactThreshold = 4;
+let exactThreshold = 5;
 
 if(rareCount === 4){
-  exactThreshold = 3;
+  exactThreshold = 4;
 }
 else if(rareCount === 3){ 
-  exactThreshold = 2;
+  exactThreshold = 3;
 }
 else if(rareCount <= 2){
   exactThreshold = 0; 
