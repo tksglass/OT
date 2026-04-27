@@ -3162,7 +3162,7 @@ if (second && (!best || second.i !== best.i)) {
     : "Alternative";
 
 const body = collapseMove
-	? `${describeMove(second, "gold")}
+	? `${describeMove(second, "gold").replace(/→ Info gain: .*?(\n|<br>)/, "")}
 	<br><br>
 	<span style="color:#fbbf24">Expected boards after 2 clicks:</span> ${collapseMove.expectedRemaining.toFixed(1)}`
 	: describeMove(second, "gold");
