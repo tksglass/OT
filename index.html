@@ -3130,8 +3130,8 @@ const { hits, misses, huntMode } = getGameContext();
 → ${hitLabel}: ${(hitChance*100).toFixed(1)}%`;
   };
   
-  const best = topMoves[0];
-  const safest = topMoves.find(m => m.type === 'safe');
+const safest = topMoves.find(m => m.type === 'safe');
+const best = topMoves.find(m => m.type !== 'safe');
 
 if (safest && (!best || safest.i !== best.i)) {
   messages.push(
@@ -3156,7 +3156,11 @@ if (safest && (!best || safest.i !== best.i)) {
 const collapseMove = appState.collapseMove;
 const second = collapseMove || topMoves[1];
 
-if (second && (!best || second.i !== best.i)) {
+if (
+  second &&
+  (!best || second.i !== best.i) &&
+  (!safest || second.i !== safest.i)
+) {
   const title = collapseMove
     ? "2-Step Collapse"
     : "Alternative";
@@ -3681,14 +3685,15 @@ if(phase === "early"){
 
 function selectTopMoves(candidates, huntMode) {
   let topMoves = candidates.slice(0, 2);
-  let safest = null;
 
-  if (!huntMode) {
-    safest = [...candidates].sort((a, b) => a.p - b.p)[0];
-  }
+  let safest = !huntMode
+    ? [...candidates].sort((a, b) => a.p - b.p)[0]
+    : null;
 
-  if (safest && topMoves.some(m => m.i === safest.i)) {
-    safest = null;
+  const best = topMoves[0];
+
+  if (safest && best && safest.i === best.i) {
+    topMoves = topMoves.filter(m => m.i !== safest.i);
   }
 
   topMoves = topMoves.map(m => ({ ...m, type: 'top' }));
