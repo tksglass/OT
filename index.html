@@ -1161,6 +1161,8 @@ lastHoveredTile = null;
 currentMode = MODE.NORMAL;
 
 appState = createEmptyAppState();
+gridStatsCache = null;
+DOM.infoBox.innerHTML = "";
 
 lastSpecialGroup = null;
 
@@ -4491,8 +4493,6 @@ const messages = [
     "info-green"
   )
 ];
-
-appendFarseerCard(messages);
 
 box.innerHTML = messages.join("<br>");
 }
