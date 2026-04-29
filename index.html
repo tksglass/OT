@@ -4607,6 +4607,7 @@ function loadFromHash(hash){
 
     rareCount = rareCountVal;
     forcedStartMode = rareCountVal >= 4 ? modeVal : null;
+	updateTopInfoVisibility();
 
     document.querySelectorAll('[onclick^="setRare"]').forEach(b=>{
       b.classList.remove('active-btn');
