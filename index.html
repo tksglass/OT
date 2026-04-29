@@ -43,7 +43,7 @@
 }
   h2, h3 { margin: 5px 0; }
   .topbar { background: #d1d5db; flex-wrap: nowrap; padding: 15px; border-radius: 12px; box-shadow: 0 4px 10px rgba(0,0,0,0.1); margin-bottom: 20px; }
-  .reset-container { background: #d1d5db; flex-wrap: nowrap; padding: 15px; border-radius: 12px; box-shadow: 0 4px 10px rgba(0,0,0,0.1); margin-bottom: 20px; }
+  .reset-container { background: #d1d5db; padding: 15px; border-radius: 12px; box-shadow: 0 4px 10px rgba(0,0,0,0.1); margin-bottom: 20px; }
   .label { font-weight: bold; margin-right: 10px; }
 
   .color-btn {
@@ -57,10 +57,14 @@
   box-shadow: 0 0 0 3px black, 0 0 8px rgba(0,0,0,0.4);
 }
 
-  button {
-    padding: 6px 10px; margin-right: 5px; border-radius: 6px;
-    border: none; cursor: pointer; background: #ddd;
-  }
+button {
+  padding: 6px 10px;
+  border-radius: 6px;
+  border: none;
+  cursor: pointer;
+  background: #ddd;
+}
+
   button:hover { background: #ccc; }
   .active-btn { background: #4CAF50; color: white; }
 
@@ -69,12 +73,6 @@
   justify-content: space-between;
   align-items: center;
   margin-bottom: 10px;
-}
-
-.action-group {
-  display: flex;
-  gap: 10px;
-  margin-left: auto;
 }
 
 .boards {
@@ -149,13 +147,13 @@
 #topInfoBox {
   width: 100%;
   box-sizing: border-box;
-  margin-bottom: 20px;
-  background: #d1d5db;
-  padding: 15px;
-  border-radius: 12px;
-  box-shadow:
-    inset 0 1px 0 rgba(255,255,255,0.5),
-    0 4px 10px rgba(0,0,0,0.1);
+  margin: 0;
+  
+  background: transparent;
+  padding: 0;
+  border-radius: 0;
+  box-shadow: none;
+  margin-bottom: 10px;
 }
 
 #topInfoBox .stat-number {
@@ -192,6 +190,14 @@
   letter-spacing: 0.3px;
 }
 
+.reset-actions {
+  display: grid;
+  grid-template-columns: repeat(3, max-content);
+  justify-content: center;
+  gap: 110px;
+  width: 100%;
+}
+
 #infoBox {
   flex: 1;
   width: 100%;
@@ -206,7 +212,7 @@
     0 4px 10px rgba(0,0,0,0.1);
 }
 
-.topbar, #infoBox, #topInfoBox {
+.topbar, #infoBox {
   width: 100%;
   box-sizing: border-box;
 }
@@ -266,8 +272,8 @@
 .board-container {
   background: #f3f4f6;
   padding: 15px;
-  display: flex;
-  flex-direction: column;
+   display: flex;
+   flex-direction: column;
   border-radius: 12px;
   box-shadow: 0 4px 10px rgba(0,0,0,0.1);
   flex: 1;
@@ -423,6 +429,42 @@
   width: 100%;
 }
 
+#topInfoBox.hidden,
+#topInfoDivider.hidden {
+  display: none !important;
+}
+
+.top-info-divider {
+  width: 92%;
+  height: 1px;
+  margin: 10px auto 14px;
+
+  background: linear-gradient(
+    to right,
+    transparent,
+    rgba(17, 24, 39, 0.25),
+    transparent
+  );
+
+  position: relative;
+}
+
+.top-info-divider::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 1px;
+  height: 1px;
+
+  background: linear-gradient(
+    to right,
+    transparent,
+    rgba(255,255,255,0.5),
+    transparent
+  );
+}
+
 .section {
   display: flex;
   align-items: center;
@@ -433,11 +475,6 @@
 #undoBtn {
   background: #374151;
   color: #f9fafb;
-  margin-right: 100px;
-}
-
-#redoBtn {
-  margin-right: 100px;
 }
 
 #undoBtn:hover {
@@ -456,6 +493,7 @@
 .reset-container {
   display: flex;
   justify-content: center;
+  flex-direction: column;
 }
 
 #resetBtn {
@@ -469,14 +507,20 @@
 
 .topbar,
 .board-container,
-#infoBox,
-#topInfoBox {
+#infoBox {
   border-radius: 12px;
 }
 
 .guaranteed-unknown {
   font-size: 18px;
-  color: #a855f7; 
+  color: #111827;
+  background: rgba(168,85,247,0.16);
+  border-radius: 50%;
+  width: 22px;
+  height: 22px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   font-weight: bold;
 }
 
@@ -537,11 +581,11 @@
 }
 
 .recommended-final::after {
-  content: "?";
+  content: "◆";
   color: #a855f7;
   font-weight: bold;
   position: absolute;
-  font-size: 18px;
+  font-size: 16px;
 }
 
 .info-hint {
@@ -624,14 +668,22 @@
 
   </div>
   
-  <div id="topInfoBox" class="top-info-box"></div>
+
   
 </div>
 
-    <div class="reset-container">
-  <button id="undoBtn" onclick="undoMove()">Undo</button>
-  <button id="redoBtn" onclick="redoMove()">Redo</button>
-  <button id="resetBtn" onclick="resetAll()">Reset</button>
+<div class="reset-container">
+
+  <div id="topInfoBox" class="top-info-box hidden"></div>
+
+  <div id="topInfoDivider" class="top-info-divider hidden"></div>
+
+  <div class="reset-actions">
+    <button id="undoBtn" onclick="undoMove()">Undo</button>
+    <button id="redoBtn" onclick="redoMove()">Redo</button>
+    <button id="resetBtn" onclick="resetAll()">Reset</button>
+  </div>
+
 </div>
 
 <div class="layout">
@@ -1013,6 +1065,7 @@ window.resetAll = function(){
   rareCount = null;
   forcedStartMode = null;
   history = [];
+  updateTopInfoVisibility();
   
 
   document.querySelectorAll('.color-btn').forEach(b=>{
@@ -2009,15 +2062,19 @@ appState = {
 function scoreBoard(board){
   let score = 0;
 
-  for(let i=0;i<25;i++){
+  for(let i = 0; i < 25; i++){
     if(grid[i] && grid[i] !== 'miss'){
-      if(board[i] === grid[i]) score += 2;
+      if(board[i] === grid[i]) score += 3;
+      else score -= 10;
+    }
+
+    if(grid[i] === 'miss' && board[i]){
+      score -= 10;
     }
   }
 
   return score;
 }
-
 function prepareSortedShips() {
   const ships = getShipList();
 
@@ -2876,6 +2933,16 @@ function updateExactSolverUI(valid) {
 // T.11 UI
 // ===============================
 
+function updateTopInfoVisibility(){
+  const shouldShow = rareCount !== null;
+
+  DOM.topInfoBox?.classList.toggle('hidden', !shouldShow);
+
+  document
+    .getElementById('topInfoDivider')
+    ?.classList.toggle('hidden', !shouldShow);
+}
+
 function updateModeButtons(){
   const safeBtn = document.getElementById('modeSafe');
   const aggressiveBtn = document.getElementById('modeAggressive');
@@ -3148,8 +3215,8 @@ function buildModeCard(){
   return makeCard(
     "Mode Info",
     huntMode
-      ? "Finding non-blues. Heatmap represents % chance of non-blue in a given tile based on all valid boards."
-      : "Finding blues. Heatmap represents % chance of blue in a given tile based on all valid boards.",
+      ? "• Finding <b>non-blues</b>. <br>• Heatmap shows % chance of <b>non-blue</b>."
+      : "• Finding <b>blues</b>.<br>• Heatmap shows % chance of <b>blue</b>.",
     "info-blue"
   );
 }
@@ -4600,6 +4667,7 @@ window.setRare = function(n,btn){
   if(configLocked) return;
 
   rareCount = n;
+  updateTopInfoVisibility();
 
 if (n >= 4) {
   forcedStartMode = "aggressive";
@@ -4667,6 +4735,7 @@ DOM.modeLabel = document.getElementById('modeLabel');
 createBoards();
 updateBoardLock();
 updateInfoBox();
+updateTopInfoVisibility();
 
 };
 </script>
