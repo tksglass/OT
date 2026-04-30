@@ -3494,6 +3494,10 @@ for (let i = 0; i < 25; i++) {
   }
 }
 
+if (candidates.length === 0) {
+  return false;
+}
+
   candidates.forEach(i => {
     play[i].classList.add('recommended-final');
   });
@@ -3894,13 +3898,6 @@ function isRareBoardColor(color) {
   );
 }
 
-function isRareBoardColor(color) {
-  return (
-    RARE_COLORS.includes(color) ||
-    isAnonymousRareShip(color)
-  );
-}
-
 function buildPreviewHeatmapState(tileIndex, scenarioBoards) {
   const probs = computePreviewProbs(scenarioBoards);
   const context = getPreviewGameContext(tileIndex, scenarioBoards);
@@ -4016,34 +4013,29 @@ function renderHeatmapWithContext(probs, huntMode, mode, label) {
 
   for (let i = 0; i < 25; i++) {
     let displayProb;
+    let text;
 
     if (mode === MODE.GAME_OVER) {
       displayProb = 0;
+      text = "END";
     } else if (mode === MODE.ALL_HITS) {
-      displayProb = 1;
+      displayProb = probs[i];
+      text = displayProb.toFixed(2);
     } else if (mode === MODE.ALL_MISSES) {
-      displayProb = huntMode ? 0 : 1;
+      displayProb = 1 - probs[i];
+      text = displayProb.toFixed(2);
     } else {
       displayProb = huntMode ? probs[i] : (1 - probs[i]);
+      text = displayProb.toFixed(2);
     }
 
     const bg = `rgba(255,0,0,${displayProb})`;
-    const text =
-      mode === MODE.GAME_OVER
-        ? "END"
-        : displayProb.toFixed(2);
 
     setBackgroundIfChanged(heat[i], bg);
     setTextIfChanged(heat[i], text);
   }
 
   setTextIfChanged(DOM.modeLabel, label);
-}
-
-function clearSelectedColorUI() {
-  document.querySelectorAll('.color-btn').forEach(b => {
-    b.classList.remove('selected');
-  });
 }
 
 function clearRecommendations(){
