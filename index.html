@@ -3479,10 +3479,20 @@ function handleEndgameInfo(messages, box) {
   let [b1, b2] = appState.allBoards;
   let candidates = [];
 
-  for (let i = 0; i < 25; i++) {
-    if (grid[i]) continue;
-    if (b1[i] !== b2[i]) candidates.push(i);
+const { huntMode } = getGameContext();
+
+for (let i = 0; i < 25; i++) {
+  if (grid[i]) continue;
+  if (b1[i] === b2[i]) continue;
+
+  const p = appState.probs?.[i] ?? 0;
+
+  if (huntMode) {
+    if (p > 0) candidates.push(i);
+  } else {
+    if (p < 1) candidates.push(i);
   }
+}
 
   candidates.forEach(i => {
     play[i].classList.add('recommended-final');
