@@ -4844,9 +4844,16 @@ function highlightAvoidGroup(data){
         play[i].setAttribute("data-label", sizes.join("/"));
       }
     }
-    else if(size2Set.has(i) && shownRareTiles.has(i)){
-      play[i].classList.add('recommended-size2');
-    }
+else if(size2Set.has(i) && shownRareTiles.has(i)){
+  const sizes = (data.shipMap[i] || []).slice().sort((a,b)=>b-a);
+
+  if(sizes.length){
+    play[i].classList.add('recommended-label');
+    play[i].setAttribute("data-label", sizes.join("/"));
+  } else {
+    play[i].classList.add('recommended-size2');
+  }
+}
     else {
       play[i].classList.add('recommended-avoid');
       play[i].textContent = "✕";
