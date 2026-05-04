@@ -400,6 +400,11 @@ button {
   font-weight: bold;
 }
 
+.coord-high-ev {
+  color: #d97706;
+  font-weight: bold;
+}
+
 @keyframes alertPulse {
   0% {
     box-shadow: 0 0 0 0 rgba(168, 85, 247, 0.7);
@@ -702,8 +707,12 @@ button {
 }
 
 .recommended-high-ev {
-  outline: 3px solid #facc15;
+  outline: 3px solid #d97706; 
   outline-offset: -3px;
+
+  box-shadow:
+    inset 0 0 0 2px rgba(255,255,255,0.6), 
+    0 0 6px rgba(250,204,21,0.8);          
 }
 
 .recommended-equal::after {
@@ -715,6 +724,15 @@ button {
 }
 
 .recommended-label {
+  position: relative;
+}
+
+.recommended-gamba {
+  outline: 3px solid #dc2626;
+  outline-offset: -3px;
+  box-shadow:
+    inset 0 0 0 2px rgba(250,204,21,0.65),
+    0 0 10px 3px rgba(220,38,38,0.55);
   position: relative;
 }
 
@@ -4270,6 +4288,41 @@ renderForcedOverlays();
 return true;
 }
 
+function getGambaOption(data, shownRareTiles = null) {
+  if (!data || !data.allBoards || !data.probs) return null;
+
+  const bestTiles = data.tiles || [];
+  const bestSet = new Set(bestTiles);
+
+  const shownSet = shownRareTiles || new Set();
+
+  const candidates = [];
+
+  for (let i = 0; i < 25; i++) {
+    if (grid[i] !== null) continue;
+    if (bestSet.has(i)) continue;
+    if (shownSet.has(i)) continue;
+
+    const rareP = getUnfoundRareProbability(i, data.allBoards);
+    if (rareP <= 0) continue;
+
+    candidates.push({
+      i,
+      p: data.probs[i] || 0,
+      rareP,
+      ev: getTileAverageEV(i, data)
+    });
+  }
+
+  if (!candidates.length) return null;
+
+  return candidates.sort((a, b) => {
+    if (b.ev !== a.ev) return b.ev - a.ev;
+    if (b.rareP !== a.rareP) return b.rareP - a.rareP;
+    return b.p - a.p;
+  })[0];
+}
+
 function analyzeEquivalence(allBoards, probs) {
   const groups = getEquivalenceGroups(allBoards);
 
@@ -4334,14 +4387,15 @@ function applyEquivalenceResult(data, probs) {
   appState.collapseMove = data.collapseMove || null;
 
   if (isSymmetric) {
-    appState.specialGroup = {
-      tiles: data.bestGroup,
-      size2Tiles: data.size2Tiles,
-      shipMap: data.shipMap,
-      evMap: data.evMap,
-      probs,
-      collapseMove: data.collapseMove || null
-    };
+appState.specialGroup = {
+  tiles: data.bestGroup,
+  size2Tiles: data.size2Tiles,
+  shipMap: data.shipMap,
+  evMap: data.evMap,
+  probs,
+  allBoards: data.allBoards,
+  collapseMove: data.collapseMove || null
+};
   } else {
     appState.specialGroup = null;
     highlightRecommendations(probs);
@@ -5547,9 +5601,9 @@ function appendPreGameMessages(messages, ctx) {
         `
         • $OT will not end at 4 blue clicks if you have not yet found 5 non-blue tiles<br><br>
         • 8 and 9 colors default to aggressive mode (finding non-blues.)<br><br>
-        • Unclicked guaranteed tiles get stripes in their color. Clicking them before the solver tells you to could lead to worse outcomes.<br><br>
+        • Unclicked guaranteed tiles get stripes in their color. Clicking them before the solver tells you to could lead to worse outcomes. (incl. fill hit button)<br><br>
 	    • After exact solving activates, you can toggle the heatmap to an expected sphere value (EV) heatmap. <br><br>
-	    • While Exact solving is active, you can hover over a tile to get calculations of future probabilities based on the current selected color.<br><br>
+	    • While Exact solving is active, you can hover over a tile to get calculations of future probabilities / EV based on the current selected color.<br><br>
         • "Alternative" recommendations are just the 2nd best move. These later become "2-Step Collapse" moves, which calculate 2 moves into the future to reduce board counts.<br><br>
         • EV is shown when probabilities are tied. You can use it to decide tie breakers.
 		`,
@@ -6349,7 +6403,8 @@ function clearRecommendations(){
     removeClassIfPresent(c, 'stripe-overlay');
     removeClassIfPresent(c, 'stripe-rainbow');
 	removeClassIfPresent(c, 'rainbow-highlight');
-removeClassIfPresent(c, 'guaranteed-unknown');
+	removeClassIfPresent(c, 'guaranteed-unknown');
+	removeClassIfPresent(c, 'recommended-gamba');
 
 c.style.removeProperty("--label-color");
 
@@ -6478,7 +6533,7 @@ function getHighestEVTile(tiles, data) {
   return bestTiles.length === 1 ? bestTiles[0] : null;
 }
 
-function formatEquivalenceMoveLine(tile, data) {
+function formatEquivalenceMoveLine(tile, data, highestEVTile = null) {
   const [r, c] = indexToCoord(tile);
   const overlap = getTileOverlapCount(tile, data);
   const ev = getTileAverageEV(tile, data);
@@ -6488,8 +6543,13 @@ function formatEquivalenceMoveLine(tile, data) {
       ? `${overlap}-Ship Overlap; `
       : "No overlap; ";
 
+  const coordClass =
+    tile === highestEVTile
+      ? "coord-high-ev"
+      : "coord-good";
+
   return `
-    <span class="coord-good">Row ${r + 1}, Col ${c + 1}</span>
+    <span class="${coordClass}">Row ${r + 1}, Col ${c + 1}</span>
     <span style="opacity:0.85">
       — ${overlapText}EV: ${ev.toFixed(0)}
     </span>
@@ -6520,6 +6580,8 @@ function highlightAvoidGroup(data){
       .slice(0, 3)
       .map(x => x.i)
   ]);
+  
+  const gambaOption = getGambaOption(data, shownRareTiles);
 
   for(let i=0;i<25;i++){
     if(grid[i]) continue;
@@ -6543,10 +6605,14 @@ if(sizes.length){
   renderEVBadge(play[i], data.evMap?.[i]);
 }
 }
-    else {
-      play[i].classList.add('recommended-avoid');
-      play[i].textContent = "✕";
-    }
+    else if (gambaOption && i === gambaOption.i) {
+  play[i].classList.add('recommended-gamba');
+  renderEVBadge(play[i], data.evMap?.[i]);
+}
+else {
+  play[i].classList.add('recommended-avoid');
+  play[i].textContent = "✕";
+}
   }
 
   renderEquivalenceInfo(data);
@@ -6569,9 +6635,11 @@ if(bestTiles.length){
 
   const bestProb = (probs[sortedBestTiles[0]] * 100).toFixed(1);
 
-  let coords = sortedBestTiles.map(i =>
-    formatEquivalenceMoveLine(i, data)
-  ).join("<br>");
+const highestEVTile = getHighestEVTile(bestTiles, data);
+
+let coords = sortedBestTiles.map(i =>
+  formatEquivalenceMoveLine(i, data, highestEVTile)
+).join("<br>");
 
   content += `
     <b>Best Moves (~${bestProb}%)</b><br>
@@ -6684,6 +6752,30 @@ const messages = [
     "info-green"
   )
 ];
+
+const gambaOption = getGambaOption(data, shownRareTiles);
+
+if (gambaOption) {
+  const [r, c] = indexToCoord(gambaOption.i);
+
+  const gambaContent = `
+    <b>Row ${r + 1}, Col ${c + 1}</b><br>
+    EV: <b>${gambaOption.ev.toFixed(0)}</b><br>
+    Hit probability: <b>${(gambaOption.p * 100).toFixed(1)}%</b><br>
+    Unfound rare chance: <b>${(gambaOption.rareP * 100).toFixed(1)}%</b><br>
+    <span style="opacity:0.8">
+      This tile would normally be in the avoid group, but it has the highest EV so roll away.
+    </span>
+  `;
+
+  messages.push(
+    makeCard(
+      "Gamba Option",
+      gambaContent,
+      "info-red"
+    )
+  );
+}
 
 box.innerHTML = messages.join("<br>");
 }
