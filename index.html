@@ -1051,7 +1051,7 @@ const MODE = {
 
 const MAX_MISSES = 5;
 
-const PRECALC_BOARD_LIMIT = 3000;
+const PRECALC_BOARD_LIMIT = 5000;
 const PRECALC_MAX_DEPTH = 12;
 const PRECALC_UNKNOWN_TILE_LIMIT = 12;
 
@@ -4402,11 +4402,25 @@ function getGambaOption(data, shownRareTiles = null) {
 
   if (!candidates.length) return null;
 
-  return candidates.sort((a, b) => {
-    if (b.ev !== a.ev) return b.ev - a.ev;
-    if (b.rareP !== a.rareP) return b.rareP - a.rareP;
-    return b.p - a.p;
-  })[0];
+candidates.sort((a, b) => {
+  if (b.ev !== a.ev) return b.ev - a.ev;
+  if (b.rareP !== a.rareP) return b.rareP - a.rareP;
+  return b.p - a.p;
+});
+
+const best = candidates[0];
+const second = candidates[1];
+
+if (
+  second &&
+  Math.abs(best.ev - second.ev) < 0.000001 &&
+  Math.abs(best.rareP - second.rareP) < 0.000001 &&
+  Math.abs(best.p - second.p) < 0.000001
+) {
+  return null;
+}
+
+return best;
 }
 
 function analyzeEquivalence(allBoards, probs) {
