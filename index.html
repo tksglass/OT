@@ -4071,9 +4071,12 @@ function getBestCollapseMove(
 
     const score = scoreCollapseForTile(allBoards, i, probs);
 
-    if (!best || score.expectedRemaining < best.expectedRemaining) {
-      best = score;
-    }
+if (
+  !best ||
+  score.riskAdjustedRemaining < best.riskAdjustedRemaining
+) {
+  best = score;
+}
   }
 
   return best;
@@ -4093,6 +4096,8 @@ function scoreTwoStepCollapse(allBoards, firstTile, probs, unknownTiles) {
   const firstBuckets = ctx.outcomeBoardSetsByTile[firstTile];
 
   let expectedRemaining = 0;
+  let worstRemaining = 0;
+
   const totalBoards = allBoards.length;
 
   for (const outcome in firstBuckets) {
@@ -4117,13 +4122,19 @@ function scoreTwoStepCollapse(allBoards, firstTile, probs, unknownTiles) {
 
     if (bestSecondScore < Infinity) {
       expectedRemaining += pFirst * bestSecondScore;
+      worstRemaining = Math.max(worstRemaining, bestSecondScore);
     }
   }
+
+  const riskAdjustedRemaining =
+    expectedRemaining + worstRemaining * 0.35;
 
   return {
     i: firstTile,
     p: probs[firstTile],
-    expectedRemaining
+    expectedRemaining,
+    worstRemaining,
+    riskAdjustedRemaining
   };
 }
 
@@ -4143,6 +4154,7 @@ function scoreTwoStepCollapseArrayFallback(
   }
 
   let expectedRemaining = 0;
+  let worstRemaining = 0;
 
   for (const key in firstBuckets) {
     const boardsAfterFirst = firstBuckets[key];
@@ -4158,12 +4170,18 @@ function scoreTwoStepCollapseArrayFallback(
     if (!bestSecond) continue;
 
     expectedRemaining += pFirst * bestSecond.expectedRemaining;
+    worstRemaining = Math.max(worstRemaining, bestSecond.expectedRemaining);
   }
+
+  const riskAdjustedRemaining =
+    expectedRemaining + worstRemaining * 0.35;
 
   return {
     i: firstTile,
     p: probs[firstTile],
-    expectedRemaining
+    expectedRemaining,
+    worstRemaining,
+    riskAdjustedRemaining
   };
 }
 
@@ -4195,9 +4213,12 @@ function getBestTwoStepCollapseMove(allBoards, probs) {
       unknownTiles
     );
 
-    if (!best || score.expectedRemaining < best.expectedRemaining) {
-      best = score;
-    }
+if (
+  !best ||
+  score.riskAdjustedRemaining < best.riskAdjustedRemaining
+) {
+  best = score;
+}
   }
 
   return best;
