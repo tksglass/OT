@@ -2457,7 +2457,14 @@ function runMonteCarlo(ctx) {
   return { counts, valid, attempts };
 }
 
-function backtrackPlace(ships, placementsMap, index, board, occupiedMask = 0){
+function backtrackPlace(
+  ships,
+  placementsMap,
+  index,
+  board,
+  occupiedMask = 0,
+  knownMissMask = getKnownMissMask()
+){
   if(index === ships.length) return true;
 
   let ship = ships[index];
@@ -2467,43 +2474,44 @@ function backtrackPlace(ships, placementsMap, index, board, occupiedMask = 0){
     const cells = placementCells(opt);
     const placementMask = opt.mask;
 
-if(index > 0 && getShipType(ships[index]) === getShipType(ships[index-1])){
-  let prevShip = ships[index-1];
-  let minPrev = Infinity;
+    if(index > 0 && getShipType(ships[index]) === getShipType(ships[index-1])){
+      let prevShip = ships[index-1];
+      let minPrev = Infinity;
 
-  for(let i = 0; i < 25; i++){
-    if(board[i] === prevShip){
-      minPrev = i;
-      break;
+      for(let i = 0; i < 25; i++){
+        if(board[i] === prevShip){
+          minPrev = i;
+          break;
+        }
+      }
+
+      if(minPrev !== Infinity){
+        let minCurr = placementKey(opt);
+        if(minCurr < minPrev) continue;
+      }
     }
-  }
 
-  if(minPrev !== Infinity){
-    let minCurr = placementKey(opt);
-
-    if(minCurr < minPrev) continue;
-  }
-}
-
+    if(placementMask & knownMissMask) continue;
     if(placementMask & occupiedMask) continue;
 
     for (const i of cells) {
-  board[i] = ship;
-}
+      board[i] = ship;
+    }
 
     if(backtrackPlace(
       ships,
       placementsMap,
       index + 1,
       board,
-      occupiedMask | placementMask
+      occupiedMask | placementMask,
+      knownMissMask
     )) {
       return true;
     }
 
     for (const i of cells) {
-  board[i] = null;
-}
+      board[i] = null;
+    }
   }
 
   return false;
@@ -2548,12 +2556,13 @@ function mcmcStep(board, ships, placementsMap){
 
     for(let opt of options){
       if(
-        !canPlaceWithSameShipOverlap(
-          opt,
-          ship,
-          occupiedMask,
-          shipMasks
-        )
+		!canPlaceWithSameShipOverlap(
+			opt,
+			ship,
+			occupiedMask,
+			shipMasks,
+			getKnownMissMask()
+		)
       ){
         continue;
       }
