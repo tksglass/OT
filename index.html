@@ -2408,11 +2408,11 @@ function shouldRunExactSolver(ctx) {
   let exactThreshold = 5;
 
   if (rareCount === 4) {
-    exactThreshold = 3;
+    exactThreshold = 4;
   } else if (rareCount === 3) {
-    exactThreshold = 3;
+    exactThreshold = 4;
   } else if (rareCount <= 2) {
-    exactThreshold = 2;
+    exactThreshold = 3;
   }
 
   return ctx.placedTiles >= exactThreshold;
@@ -7078,7 +7078,7 @@ function boardKey(board){
 
     if(!cell){
       key += "x";
-    } else if(isRareShipId(cell)){
+    } else if (isAnonymousRareShip(cell)) {
       key += "R";
     } else {
       key += COLOR_TO_ID[cell];
