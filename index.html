@@ -4,9 +4,11 @@
 ===============================
 // LEGEND
 // T.01 CONFIG / CONSTANTS
+// T.01A CONSTANT BUILDERS
 // T.02 GLOBAL STATE
 // T.03 ACTIONS
 // T.04 FLOW CONTROLLERS
+// T.04A STATE / HISTORY / CACHE HELPERS
 // T.05 VALIDATION
 // T.06 SHIP PLACEMENT
 // T.07 GAME STATE
@@ -1088,6 +1090,10 @@ const DOM = {
   modeLabel: null
 };
 
+// ===============================
+// T.01A CONSTANT BUILDERS
+// ===============================
+
 function buildRawPlacements(size){
   const placements = [];
 
@@ -1212,6 +1218,7 @@ let rareUnfoundCountsCache = null;
 let hitMasksCache = null;
 let equivalenceGroupsCache = null;
 let precalcContextCache = null;
+let exactResultCache = new Map();
 
 let configLocked = false;
 let isLoadingHash = false;
@@ -1451,6 +1458,8 @@ history.push({
 
 window.resetAll = function(){
 
+  exactResultCache.clear();
+
   grid = Array(25).fill(null);
   selectedColor = null;
   rareCount = null;
@@ -1525,38 +1534,6 @@ updateAutoHitsButton();
 // T.04 FLOW CONTROLLERS
 // ===============================
 
-function getAutoFillForcedHits() {
-  if (!appState.forcedTiles) return [];
-
-  return Object.entries(appState.forcedTiles)
-    .map(([index, color]) => ({
-      index: Number(index),
-      color
-    }))
-    .filter(({ index, color }) =>
-      grid[index] === null &&
-      color &&
-      color !== 'miss' &&
-      !isAnonymousRareShip(color)
-    );
-}
-
-function updateAutoHitsButton() {
-  const btn = document.getElementById('autoHitsBtn');
-  if (!btn) return;
-
-  const count = getAutoFillForcedHits().length;
-
-  btn.disabled = count === 0;
-  btn.textContent = count > 0 ? `Fill Hits (${count})` : 'Fill Hits';
-
-  const hasNewForcedHits = count > lastAutoFillHitCount;
-
-  btn.classList.toggle('pulse', hasNewForcedHits && count > 0);
-
-  lastAutoFillHitCount = count;
-}
-
 function isGameOver() {
   const gameOver = currentMode === MODE.GAME_OVER;
   return gameOver;
@@ -1592,80 +1569,6 @@ function ensureConfigLocked() {
 
   configLocked = true;
   lockConfigUI();
-}
-
-function saveHistorySnapshot(snapshot = createHistorySnapshot()) {
-  history.push(snapshot);
-}
-
-function createHistorySnapshot() {
-  return {
-    grid: [...grid],
-    rareCount,
-    forcedStartMode,
-    appState: deepClone(appState),
-    currentMode
-  };
-}
-
-function deepClone(obj) {
-  if (obj === null || obj === undefined) return obj;
-
-  return {
-    ...obj,
-
-    probs: obj.probs ? [...obj.probs] : null,
-
-    topMoves: obj.topMoves
-      ? obj.topMoves.map(move => ({ ...move }))
-      : null,
-
-    specialGroup: obj.specialGroup
-      ? {
-          ...obj.specialGroup,
-          tiles: obj.specialGroup.tiles
-            ? [...obj.specialGroup.tiles]
-            : obj.specialGroup.tiles
-        }
-      : null,
-
-    forcedTiles: obj.forcedTiles
-      ? { ...obj.forcedTiles }
-      : obj.forcedTiles,
-
-    collapseMove: obj.collapseMove
-      ? { ...obj.collapseMove }
-      : obj.collapseMove,
-
-allBoards: obj.allBoards
-  ? obj.allBoards.map(board =>
-      isMaskBoard(board)
-        ? {
-            __maskBoard: true,
-            hitMask: board.hitMask,
-            colorMasks: { ...board.colorMasks }
-          }
-        : [...board]
-    )
-  : obj.allBoards,
-
-    winStrategy: obj.winStrategy
-      ? {
-          ...obj.winStrategy,
-          line: obj.winStrategy.line
-            ? [...obj.winStrategy.line]
-            : obj.winStrategy.line
-        }
-      : obj.winStrategy,
-
-    noEquivalencePlan: obj.noEquivalencePlan
-      ? JSON.parse(JSON.stringify(obj.noEquivalencePlan))
-      : obj.noEquivalencePlan,
-
-    uncertaintyMove: obj.uncertaintyMove
-      ? { ...obj.uncertaintyMove }
-      : obj.uncertaintyMove
-  };
 }
 
 function commitAcceptedMove(move) {
@@ -1740,6 +1643,84 @@ function isValidPlacement(i, prevColor) {
   }
 
   return true;
+}
+
+// ===============================
+// T.04A STATE / HISTORY / CACHE HELPERS
+// ===============================
+
+function saveHistorySnapshot(snapshot = createHistorySnapshot()) {
+  history.push(snapshot);
+}
+
+function createHistorySnapshot() {
+  return {
+    grid: [...grid],
+    rareCount,
+    forcedStartMode,
+    appState: deepClone(appState),
+    currentMode
+  };
+}
+
+function deepClone(obj) {
+  if (obj === null || obj === undefined) return obj;
+
+  return {
+    ...obj,
+
+    probs: obj.probs ? [...obj.probs] : null,
+
+    topMoves: obj.topMoves
+      ? obj.topMoves.map(move => ({ ...move }))
+      : null,
+
+    specialGroup: obj.specialGroup
+      ? {
+          ...obj.specialGroup,
+          tiles: obj.specialGroup.tiles
+            ? [...obj.specialGroup.tiles]
+            : obj.specialGroup.tiles
+        }
+      : null,
+
+    forcedTiles: obj.forcedTiles
+      ? { ...obj.forcedTiles }
+      : obj.forcedTiles,
+
+    collapseMove: obj.collapseMove
+      ? { ...obj.collapseMove }
+      : obj.collapseMove,
+
+allBoards: obj.allBoards
+  ? obj.allBoards.map(board =>
+      isMaskBoard(board)
+        ? {
+            __maskBoard: true,
+            hitMask: board.hitMask,
+            colorMasks: { ...board.colorMasks }
+          }
+        : [...board]
+    )
+  : obj.allBoards,
+
+    winStrategy: obj.winStrategy
+      ? {
+          ...obj.winStrategy,
+          line: obj.winStrategy.line
+            ? [...obj.winStrategy.line]
+            : obj.winStrategy.line
+        }
+      : obj.winStrategy,
+
+    noEquivalencePlan: obj.noEquivalencePlan
+      ? JSON.parse(JSON.stringify(obj.noEquivalencePlan))
+      : obj.noEquivalencePlan,
+
+    uncertaintyMove: obj.uncertaintyMove
+      ? { ...obj.uncertaintyMove }
+      : obj.uncertaintyMove
+  };
 }
 
 function createEmptyAppState(){
@@ -2236,33 +2217,6 @@ function getUsedRare(){
   return RARE_COLORS.filter(c => colorCounts[c] > 0);
 }
 
-function getPartialShipTiles(){
-  let partialTiles = new Set();
-  const { occupiedMask, missMask } = getGridStats();
-  const knownMask = occupiedMask | missMask;
-
-  for(let color in SHIPS){
-    if(getShipSize(color) !== 2) continue;
-
-    let known = getKnownCellsCached(color);
-
-    if(known.length === 1){
-      let placements = getPlacementsCached(color);
-
-      placements.forEach(p => {
-        const unknownPlacementMask = p.mask & ~knownMask;
-
-        for(let mask = unknownPlacementMask; mask; mask &= mask - 1){
-          const bit = mask & -mask;
-          partialTiles.add(BIT_INDEX[bit]);
-        }
-      });
-    }
-  }
-
-  return partialTiles;
-}
-
 // ===============================
 // T.08 SIMULATION 
 // ===============================
@@ -2300,6 +2254,18 @@ function runSimulation(){
 function shouldSkipSimulation() {
   const isGameOverMode = currentMode === MODE.GAME_OVER;
   return isLoadingHash || isGameOverMode;
+}
+
+function finalizeSimulation({ counts, valid, attempts }) {
+  const probs = counts.map(c => (valid ? c / valid : 0));
+
+appState = {
+  ...createEmptyAppState(),
+  probs
+};
+
+  DOM.confidence.textContent =
+    `Valid boards: ${valid} (in ${attempts} chains)`;
 }
 
 function handleFullBoard() {
@@ -2380,14 +2346,24 @@ function handleForcedModes(ctx) {
 
   if (!ctx.huntMode && noBlueRemaining) {
     currentMode = MODE.ALL_HITS;
-    appState = createEmptyAppState();
+
+    appState = {
+      ...createEmptyAppState(),
+      forcedTiles: computeStaticModeForcedTiles()
+    };
+
     renderUI();
     return true;
   }
 
   if (ctx.huntMode && allShipsDone) {
     currentMode = MODE.ALL_MISSES;
-    appState = createEmptyAppState();
+
+    appState = {
+      ...createEmptyAppState(),
+      forcedTiles: computeStaticModeForcedTiles()
+    };
+
     renderUI();
     return true;
   }
@@ -2395,27 +2371,48 @@ function handleForcedModes(ctx) {
   return false;
 }
 
-function resetHeatmapUI() {
-  const heat = DOM.heatmap;
+function computeStaticModeForcedTiles() {
+  const { ships, placementsMap } = prepareExactSolver();
+  if (!ships || !placementsMap) return null;
 
-  for (let i = 0; i < 25; i++) {
-    setBackgroundIfChanged(heat[i], '');
-    setTextIfChanged(heat[i], '');
-  }
+  const { allBoards } = enumerateAllBoardsMaskNative(ships, placementsMap);
+  if (!allBoards || allBoards.length === 0) return null;
+
+  return computeForcedTiles(allBoards);
 }
 
 function shouldRunExactSolver(ctx) {
-  let exactThreshold = 5;
+  const { hits, placedTiles } = ctx;
 
-  if (rareCount === 4) {
-    exactThreshold = 4;
-  } else if (rareCount === 3) {
-    exactThreshold = 4;
-  } else if (rareCount <= 2) {
-    exactThreshold = 3;
+  if (rareCount >= 4) {
+    return placedTiles >= 4 ||
+      (placedTiles === 3 && hits >= 2);
   }
 
-  return ctx.placedTiles >= exactThreshold;
+  if (rareCount <= 2) {
+    return placedTiles >= 4 ||
+      (placedTiles >= 2 && hits >= 1);
+  }
+
+if (placedTiles >= 5) return true;
+
+const nonRareHits = grid.filter(color =>
+  color &&
+  color !== 'miss' &&
+  !RARE_COLORS.includes(color)
+).length;
+
+const rareHits = grid.filter(color =>
+  RARE_COLORS.includes(color)
+).length;
+
+return (
+  (placedTiles === 3 && (
+    nonRareHits >= 1 ||
+    rareHits >= 2
+  )) ||
+  (placedTiles === 4 && hits >= 1)
+);
 }
 
 // ===============================
@@ -2517,19 +2514,7 @@ function backtrackPlace(
   return false;
 }
 
-function finalizeSimulation({ counts, valid, attempts }) {
-  const probs = counts.map(c => (valid ? c / valid : 0));
-
-appState = {
-  ...createEmptyAppState(),
-  probs
-};
-
-  DOM.confidence.textContent =
-    `Valid boards: ${valid} (in ${attempts} chains)`;
-}
-
-function mcmcStep(board, ships, placementsMap){
+function mcmcStep(board, ships, placementsMap, knownMissMask = getKnownMissMask()){
   let newBoard = [...board];
 
   let k = 2 + Math.floor(Math.random() * 2);
@@ -2557,11 +2542,11 @@ function mcmcStep(board, ships, placementsMap){
     for(let opt of options){
       if(
 		!canPlaceWithSameShipOverlap(
-			opt,
-			ship,
-			occupiedMask,
-			shipMasks,
-			getKnownMissMask()
+		opt,
+		ship,
+		occupiedMask,
+		shipMasks,
+		knownMissMask
 		)
       ){
         continue;
@@ -2625,10 +2610,17 @@ function getShipType(ship){
 function runMCMCLoops(chains, ships, placementsMap) {
   const STEPS = 30;
   const COOLING = 0.98;
+  const knownMissMask = getKnownMissMask();
 
   for (let step = 0; step < STEPS; step++) {
     for (let chain of chains) {
-      const newBoard = mcmcStep(chain.board, ships, placementsMap);
+      const newBoard = mcmcStep(
+        chain.board,
+        ships,
+        placementsMap,
+        knownMissMask
+      );
+
       const oldScore = chain.score ?? scoreBoard(chain.board);
       const newScore = scoreBoard(newBoard);
 
@@ -2678,6 +2670,93 @@ function collectSamples(chains, counts, seen, validSoFar) {
 // T.10 EXACT SOLVER
 // ===============================
 
+function enumerateAllBoardsMaskNative(ships, placementsMap) {
+  const counts = Array(25).fill(0);
+  const allBoards = [];
+  const seen = new Set();
+  const knownMissMask = getKnownMissMask();
+
+  function dfs(
+    index,
+    occupiedMask,
+    hitMask,
+    shipMasks,
+    lastRarePlacementKey = 0
+  ) {
+    if (index === ships.length) {
+      const snapshot = makeMaskBoard(shipMasks, hitMask);
+      const key = maskBoardKey(snapshot);
+
+      if (seen.has(key)) return;
+      seen.add(key);
+
+      allBoards.push(snapshot);
+
+      for (let i = 0; i < 25; i++) {
+        if (hitMask & CELL_MASKS[i]) {
+          counts[i]++;
+        }
+      }
+
+      return;
+    }
+
+    const ship = ships[index];
+    const placements = placementsMap[ship];
+    const remainingShips = ships.slice(index);
+
+    const legal = getLegalPlacementsForShip(
+      ship,
+      placements,
+      null,
+      occupiedMask,
+      knownMissMask,
+      lastRarePlacementKey,
+      remainingShips,
+      shipMasks
+    );
+
+    if (!legal) return;
+
+    for (const placement of legal) {
+      const placementMask = placement.mask;
+      const nextShipMasks =
+        cloneShipMasksWithPlacement(shipMasks, ship, placementMask);
+
+      const nextLastRareKey = isAnonymousRareShip(ship)
+        ? placementKey(placement)
+        : lastRarePlacementKey;
+
+      dfs(
+        index + 1,
+        occupiedMask | placementMask,
+        hitMask | placementMask,
+        nextShipMasks,
+        nextLastRareKey
+      );
+    }
+  }
+
+  dfs(0, 0, 0, {});
+
+  return {
+    counts,
+    valid: allBoards.length,
+    allBoards
+  };
+}
+
+function installExactCaches(exactCaches) {
+  outcomeBucketsCache = exactCaches.outcomeBuckets;
+  tileShipSizesCache = exactCaches.tileShipSizes;
+  unfoundBonusCache = exactCaches.unfoundBonus;
+  tileEVStatsCache = exactCaches.tileEVStats;
+  hitCountsCache = exactCaches.hitCounts;
+  rareUnfoundCountsCache = exactCaches.rareUnfoundCounts;
+  hitMasksCache = exactCaches.hitMasks;
+  equivalenceGroupsCache = exactCaches.equivalenceGroups;
+}
+
 function runExactSolver() {
 
   resetExactSolverState();
@@ -2686,21 +2765,41 @@ function runExactSolver() {
   const { ships, placementsMap } = prepareExactSolver();
   if (!ships) return;
 
+const solverKey = getSolverStateKey();
+
+let cached = exactResultCache.get(solverKey);
+
+if (!cached) {
   const { counts, valid, allBoards } =
-    enumerateAllBoards(ships, placementsMap);
+    enumerateAllBoardsMaskNative(ships, placementsMap);
 
-const probs = computeProbabilities(counts, valid);
+  const probs = computeProbabilities(counts, valid);
 
-const exactCaches = buildExactCaches(allBoards);
+  cached = {
+    counts,
+    valid,
+    allBoards,
+    probs,
+    exactCaches: null
+  };
 
-outcomeBucketsCache = exactCaches.outcomeBuckets;
-tileShipSizesCache = exactCaches.tileShipSizes;
-unfoundBonusCache = exactCaches.unfoundBonus;
-tileEVStatsCache = exactCaches.tileEVStats;
-hitCountsCache = exactCaches.hitCounts;
-rareUnfoundCountsCache = exactCaches.rareUnfoundCounts;
-hitMasksCache = exactCaches.hitMasks;
-equivalenceGroupsCache = exactCaches.equivalenceGroups;
+  exactResultCache.set(solverKey, cached);
+}
+
+const {
+  counts,
+  valid,
+  allBoards,
+  probs
+} = cached;
+
+function ensureExactCaches() {
+  if (!cached.exactCaches) {
+    cached.exactCaches = buildExactCaches(allBoards);
+  }
+
+  installExactCaches(cached.exactCaches);
+}
 
 appState.allBoards = allBoards;
 appState.probs = probs;
@@ -2718,6 +2817,8 @@ if (handleTwoBoardEndgame(valid, probs, allBoards)) {
   updateExactSolverUI(valid);
   return;
 }
+
+ensureExactCaches();
 
 const effectiveUnknownTiles = getEffectiveUnknownTilesForPrecalc();
 
@@ -2794,6 +2895,13 @@ if (
 applyEquivalenceResult(analysis, probs);
 
 updateExactSolverUI(valid);
+}
+
+function cloneShipMasksWithPlacement(shipMasks, ship, placementMask) {
+  return {
+    ...shipMasks,
+    [ship]: (shipMasks[ship] || 0) | placementMask
+  };
 }
 
 function resetExactSolverState() {
@@ -3734,7 +3842,7 @@ const candidates = getStrategyCandidatesForBoardSet(
 ).sort((a, b) =>
   getTileSplitScoreForBoardSet(a, boardSet, ctx) -
   getTileSplitScoreForBoardSet(b, boardSet, ctx)
-).slice(0, 5);
+).slice(0, 7);
 
   for (const tile of candidates) {
     const nextKnownMask = knownMask | CELL_MASKS[tile];
@@ -4531,6 +4639,33 @@ function makeCollapseScoreGetter(allBoards, probs) {
 // T.11 MOVE STRATEGY
 // ===============================
 
+function getPartialShipTiles(){
+  let partialTiles = new Set();
+  const { occupiedMask, missMask } = getGridStats();
+  const knownMask = occupiedMask | missMask;
+
+  for(let color in SHIPS){
+    if(getShipSize(color) !== 2) continue;
+
+    let known = getKnownCellsCached(color);
+
+    if(known.length === 1){
+      let placements = getPlacementsCached(color);
+
+      placements.forEach(p => {
+        const unknownPlacementMask = p.mask & ~knownMask;
+
+        for(let mask = unknownPlacementMask; mask; mask &= mask - 1){
+          const bit = mask & -mask;
+          partialTiles.add(BIT_INDEX[bit]);
+        }
+      });
+    }
+  }
+
+  return partialTiles;
+}
+
 function makeMoveObject(i) {
   return {
     i,
@@ -4977,6 +5112,38 @@ function getRecommendationContext() {
 // T.12 UI
 // ===============================
 
+function getAutoFillForcedHits() {
+  if (!appState.forcedTiles) return [];
+
+  return Object.entries(appState.forcedTiles)
+    .map(([index, color]) => ({
+      index: Number(index),
+      color
+    }))
+    .filter(({ index, color }) =>
+      grid[index] === null &&
+      color &&
+      color !== 'miss' &&
+      !isAnonymousRareShip(color)
+    );
+}
+
+function updateAutoHitsButton() {
+  const btn = document.getElementById('autoHitsBtn');
+  if (!btn) return;
+
+  const count = getAutoFillForcedHits().length;
+
+  btn.disabled = count === 0;
+  btn.textContent = count > 0 ? `Fill Hits (${count})` : 'Fill Hits';
+
+  const hasNewForcedHits = count > lastAutoFillHitCount;
+
+  btn.classList.toggle('pulse', hasNewForcedHits && count > 0);
+
+  lastAutoFillHitCount = count;
+}
+
 function updateTopInfoVisibility(){
   const shouldShow = rareCount !== null;
 
@@ -5422,17 +5589,19 @@ if (!isRareClarifyingTile(move.i)) return;
         All possible move paths eventually reach an equivalence decision.
         <br><br>
         ${
-          matchingRecommendation
-            ? `
-              Best move to reduce that uncertainty:
-              <br>
-              <b>${matchingRecommendation}</b>
-            `
-            : `
-              Best move to reduce that uncertainty:
-              <br>
-              <b style="color:#dc2626">Row ${r + 1}, Col ${c + 1}</b>
-            `
+			matchingRecommendation
+				? `
+				Best move to reduce that uncertainty:
+				<br>
+				<b>${matchingRecommendation}</b>
+				<br>
+				<b style="color:#dc2626">Row ${r + 1}, Col ${c + 1}</b>
+  `
+				: `
+				Best move to reduce that uncertainty:
+				<br>
+				<b style="color:#dc2626">Row ${r + 1}, Col ${c + 1}</b>
+				`
         }
         <br><br>
         Expected boards: <b>${move.expectedRemaining.toFixed(1)}</b>
@@ -5934,8 +6103,6 @@ function updateBoardLock(){
   const locked =
     rareCount === null ||
     currentMode === MODE.GAME_OVER ||
-    currentMode === MODE.ALL_HITS ||
-    currentMode === MODE.ALL_MISSES ||
     currentMode === MODE.TOUCH_GRASS;
 
   board.classList.toggle('disabled', locked);
@@ -6025,6 +6192,15 @@ function showError(msg){
 // ===============================
 // T.13 VISUALS
 // ===============================
+
+function resetHeatmapUI() {
+  const heat = DOM.heatmap;
+
+  for (let i = 0; i < 25; i++) {
+    setBackgroundIfChanged(heat[i], '');
+    setTextIfChanged(heat[i], '');
+  }
+}
 
 function queueHeatmapPreview(tileIndex) {
   if (lastHoveredTile === tileIndex) return;
@@ -6916,6 +7092,15 @@ function makeCard(title, content, colorClass){
 // T.14 GRID UTILS
 // ===============================
 
+function getSolverStateKey() {
+  return [
+    rareCount,
+    forcedStartMode || "",
+    currentMode,
+    grid.map(c => c || "x").join("")
+  ].join("|");
+}
+
 function clearKnownCellsCache(){
   knownCellsCache = {};
 }
@@ -7469,6 +7654,8 @@ window.toggleHeatmapMode = function() {
 
 window.setRare = function(n,btn){
   if(configLocked) return;
+  
+  exactResultCache.clear();
 
   rareCount = n;
   updateTopInfoVisibility();
@@ -7496,6 +7683,7 @@ window.setMode = function(mode, btn){
   if(rareCount === null) return;
 
   forcedStartMode = mode;
+  exactResultCache.clear();
 
   clearPlacementsCache();
   appState = createEmptyAppState();
