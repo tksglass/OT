@@ -383,6 +383,15 @@ button {
   filter: brightness(1.10);
 }
 
+.cell.placed-tile {
+  box-shadow:
+    inset 0 0 6px 1px rgba(0,0,0,0.36);
+
+  filter:
+    saturate(1.04)
+    contrast(1.03);
+}
+
   .disabled {
     opacity: 0.4;
     pointer-events: none;
@@ -403,7 +412,7 @@ button {
 }
 
 .coord-high-ev {
-  color: #d97706;
+  color: #0369a1;
   font-weight: bold;
 }
 
@@ -696,25 +705,32 @@ button {
 }
 
 .recommended-avoid {
-  outline: 3px solid #ef4444;
-  outline-offset: -3px;
   position: relative;
 }
 
 .recommended-avoid::after {
   content: "✕";
   color: #ef4444;
-  font-weight: bold;
+
+  font-weight: 900;
+  font-size: 24px;
+  line-height: 1;
+
   position: absolute;
+  inset: 0;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  text-shadow:
+    0 0 2px rgba(0,0,0,0.45),
+    0 1px 1px rgba(255,255,255,0.25);
 }
 
 .recommended-high-ev {
-  outline: 3px solid #d97706; 
+  outline: 3px solid #0284c7;
   outline-offset: -3px;
-
-  box-shadow:
-    inset 0 0 0 2px rgba(255,255,255,0.6), 
-    0 0 6px rgba(250,204,21,0.8);          
 }
 
 .recommended-equal::after {
@@ -732,9 +748,6 @@ button {
 .recommended-gamba {
   outline: 3px solid #dc2626;
   outline-offset: -3px;
-  box-shadow:
-    inset 0 0 0 2px rgba(250,204,21,0.65),
-    0 0 10px 3px rgba(220,38,38,0.55);
   position: relative;
 }
 
@@ -812,6 +825,18 @@ button {
     transparent 6px,
     transparent 12px
   );
+}
+
+.equivalence-placed-dim {
+  opacity: 0.42;
+}
+
+.equivalence-stripe-dim::after {
+  opacity: 0.35;
+}
+
+.equivalence-gamba-active {
+  opacity: 1 !important;
 }
 
 .cell.stripe-rainbow::after {
@@ -4560,11 +4585,13 @@ function analyzeEquivalence(allBoards, probs) {
   const tileEVStats = getTileEVStats(allBoards);
   const partialTiles = getPartialShipTiles();
 
-  const size2Tiles = Object.keys(tileShipSizes)
-    .map(i => parseInt(i))
-    .filter(i => {
-      if(grid[i] !== null) return false;
-      if(bestGroup.includes(i)) return false;
+const bestGroupSet = new Set(bestGroup);
+
+const size2Tiles = Object.keys(tileShipSizes)
+  .map(i => parseInt(i))
+  .filter(i => {
+    if(grid[i] !== null) return false;
+    if(bestGroupSet.has(i)) return false;
 
       const isSize2 = tileShipSizes[i].includes(2);
       if(!isSize2) return false;
@@ -5117,17 +5144,23 @@ function getRecommendationContext() {
 function getAutoFillForcedHits() {
   if (!appState.forcedTiles) return [];
 
-  return Object.entries(appState.forcedTiles)
-    .map(([index, color]) => ({
-      index: Number(index),
-      color
-    }))
-    .filter(({ index, color }) =>
-      grid[index] === null &&
+  const hits = [];
+
+  for (const index in appState.forcedTiles) {
+    const color = appState.forcedTiles[index];
+    const i = Number(index);
+
+    if (
+      grid[i] === null &&
       color &&
       color !== 'miss' &&
       !isAnonymousRareShip(color)
-    );
+    ) {
+      hits.push({ index: i, color });
+    }
+  }
+
+  return hits;
 }
 
 function updateAutoHitsButton() {
@@ -5189,14 +5222,17 @@ function render() {
 
     resetPlayCellVisualState(cell);
 
-    if (value === 'miss') {
-      cell.style.background = '#3b82f6';
-      continue;
-    }
+if (value === 'miss') {
+  cell.style.background = '#3b82f6';
+  cell.classList.add('placed-tile');
+  continue;
+}
 
-    if (!value) {
-      continue;
-    }
+if (!value) {
+  continue;
+}
+
+cell.classList.add('placed-tile');
 
     if (value === 'teal') {
       cell.style.background = '#4fd1c5';
@@ -6195,6 +6231,43 @@ function showError(msg){
 // T.13 VISUALS
 // ===============================
 
+function applyEquivalenceDimming() {
+  const play = DOM.playBoard;
+
+  const placedMask =
+    gridMask || cellsToMask(
+      grid
+        .map((cell, i) => cell !== null ? i : null)
+        .filter(i => i !== null)
+    );
+
+  let forcedBlueMask = 0;
+
+  if (appState.forcedTiles) {
+    for (const [i, color] of Object.entries(appState.forcedTiles)) {
+      if (color === 'miss' && grid[i] === null) {
+        forcedBlueMask |= CELL_MASKS[i];
+      }
+    }
+  }
+
+  forEachMaskBit(placedMask, i => {
+    play[i].classList.add('equivalence-placed-dim');
+  });
+
+  forEachMaskBit(forcedBlueMask, i => {
+    play[i].classList.add('equivalence-stripe-dim');
+  });
+}
+
+function forEachMaskBit(mask, fn) {
+  while (mask) {
+    const bit = mask & -mask;
+    fn(BIT_INDEX[bit]);
+    mask &= mask - 1;
+  }
+}
+
 function resetHeatmapUI() {
   const heat = DOM.heatmap;
 
@@ -6692,6 +6765,9 @@ function clearRecommendations(){
 	removeClassIfPresent(c, 'rainbow-highlight');
 	removeClassIfPresent(c, 'guaranteed-unknown');
 	removeClassIfPresent(c, 'recommended-gamba');
+	removeClassIfPresent(c, 'equivalence-placed-dim');
+	removeClassIfPresent(c, 'equivalence-stripe-dim');
+	removeClassIfPresent(c, 'equivalence-gamba-active');
 
 c.style.removeProperty("--label-color");
 
@@ -6850,6 +6926,8 @@ function highlightAvoidGroup(data){
 
   const play = DOM.playBoard;
   clearRecommendations();
+  
+  applyEquivalenceDimming();
 
   let bestSet = new Set(data.tiles);
   let size2Set = new Set(data.size2Tiles || []);
@@ -6894,17 +6972,21 @@ if(sizes.length){
 }
 else if (gambaOption && i === gambaOption.i) {
 
-  if (showGambaHighlight) {
-    play[i].classList.add('recommended-gamba');
-    renderEVBadge(play[i], data.evMap?.[i]);
-  } else {
-    play[i].classList.add('recommended-avoid');
-  }
+if (showGambaHighlight) {
+  play[i].classList.add('recommended-gamba');
+  play[i].classList.add('equivalence-gamba-active');
+  renderEVBadge(play[i], data.evMap?.[i]);
+} else {
+  play[i].classList.add('recommended-avoid');
+}
 }
 
 else {
-  play[i].classList.add('recommended-avoid');
-  play[i].textContent = "✕";
+  const p = data.probs?.[i] ?? 0;
+
+  if (p > 0) {
+    play[i].classList.add('recommended-avoid');
+  }
 }
   }
 
