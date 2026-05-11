@@ -7093,6 +7093,7 @@ for(let i = 0; i < 25; i++){
   if(grid[i] !== null) continue;
   if(bestTiles.includes(i)) continue;
   if(shownRareTiles.has(i)) continue;
+  if((probs[i] || 0) <= 0) continue;
 
   avoidTiles.push(i);
 }
