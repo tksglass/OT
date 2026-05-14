@@ -2317,49 +2317,13 @@ function shouldSkipSimulation() {
   return isLoadingHash || isGameOverMode;
 }
 
-function finalizeSimulation({ counts, valid, attempts, sampleBoards = [] }) {
+function finalizeSimulation({ counts, valid, attempts }) {
   const probs = counts.map(c => (valid ? c / valid : 0));
 
-  const { huntMode } = getGameContext();
-
-  const hasGuaranteedBlue =
-    !huntMode &&
-    sampleBoards.length > 0 &&
-    probs.some((p, i) =>
-      grid[i] === null &&
-      p === 0
-    );
-
-  if (hasGuaranteedBlue) {
-    const safeMove = getSafeModeProgressMove(sampleBoards, probs, {
-      requireGuaranteedBlue: false,
-      minBlueChance: 0,
-      maxBluePenalty: 1,
-      minClarityGain: 1.0
-    });
-
-if (safeMove) {
-  safeMove.p = probs[safeMove.i];
-
-  appState = {
-        ...createEmptyAppState(),
-        probs,
-        topMoves: [safeMove],
-        safeOverride: true,
-        safeOverrideSource: "mcmcGuaranteedBlue"
-      };
-
-      DOM.confidence.textContent =
-        `Valid boards: ${valid} (in ${attempts} chains)`;
-
-      return;
-    }
-  }
-
-  appState = {
-    ...createEmptyAppState(),
-    probs
-  };
+appState = {
+  ...createEmptyAppState(),
+  probs
+};
 
   DOM.confidence.textContent =
     `Valid boards: ${valid} (in ${attempts} chains)`;
@@ -2523,8 +2487,6 @@ function runMonteCarlo(ctx) {
   let valid = 0;
   let attempts = 0;
   const seen = new Set();
-  const shouldCollectSampleBoards = !ctx.huntMode;
-const sampleBoards = shouldCollectSampleBoards ? [] : null;
 
   const NUM_CHAINS =
     ctx.placedTiles >= 4 ? 2 : 4;
@@ -2547,15 +2509,10 @@ const sampleBoards = shouldCollectSampleBoards ? [] : null;
 
     runMCMCLoops(chains, ships, placementsMap);
 
-    valid += collectSamples(chains, counts, seen, valid, sampleBoards);
+    valid += collectSamples(chains, counts, seen, valid);
   }
 
-  return {
-  counts,
-  valid,
-  attempts,
-  sampleBoards: sampleBoards || []
-};
+  return { counts, valid, attempts };
 }
 
 function backtrackPlace(
@@ -2744,7 +2701,7 @@ function runMCMCLoops(chains, ships, placementsMap) {
   }
 }
 
-function collectSamples(chains, counts, seen, validSoFar, sampleBoards = null) {
+function collectSamples(chains, counts, seen, validSoFar) {
   let newValid = 0;
 
   for (let chain of chains) {
@@ -2761,10 +2718,6 @@ function collectSamples(chains, counts, seen, validSoFar, sampleBoards = null) {
 
     seen.add(key);
     newValid++;
-	
-	if (sampleBoards) {
-  sampleBoards.push([...board]);
-}
 
     for (let i = 0; i < 25; i++) {
       if (board[i]) counts[i]++;
