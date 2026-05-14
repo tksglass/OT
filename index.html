@@ -2317,13 +2317,49 @@ function shouldSkipSimulation() {
   return isLoadingHash || isGameOverMode;
 }
 
-function finalizeSimulation({ counts, valid, attempts }) {
+function finalizeSimulation({ counts, valid, attempts, sampleBoards = [] }) {
   const probs = counts.map(c => (valid ? c / valid : 0));
 
-appState = {
-  ...createEmptyAppState(),
-  probs
-};
+  const { huntMode } = getGameContext();
+
+  const hasGuaranteedBlue =
+    !huntMode &&
+    sampleBoards.length > 0 &&
+    probs.some((p, i) =>
+      grid[i] === null &&
+      p === 0
+    );
+
+  if (hasGuaranteedBlue) {
+    const safeMove = getSafeModeProgressMove(sampleBoards, probs, {
+      requireGuaranteedBlue: false,
+      minBlueChance: 0,
+      maxBluePenalty: 1,
+      minClarityGain: 1.0
+    });
+
+if (safeMove) {
+  safeMove.p = probs[safeMove.i];
+
+  appState = {
+        ...createEmptyAppState(),
+        probs,
+        topMoves: [safeMove],
+        safeOverride: true,
+        safeOverrideSource: "mcmcGuaranteedBlue"
+      };
+
+      DOM.confidence.textContent =
+        `Valid boards: ${valid} (in ${attempts} chains)`;
+
+      return;
+    }
+  }
+
+  appState = {
+    ...createEmptyAppState(),
+    probs
+  };
 
   DOM.confidence.textContent =
     `Valid boards: ${valid} (in ${attempts} chains)`;
@@ -2487,6 +2523,8 @@ function runMonteCarlo(ctx) {
   let valid = 0;
   let attempts = 0;
   const seen = new Set();
+  const shouldCollectSampleBoards = !ctx.huntMode;
+const sampleBoards = shouldCollectSampleBoards ? [] : null;
 
   const NUM_CHAINS =
     ctx.placedTiles >= 4 ? 2 : 4;
@@ -2509,10 +2547,15 @@ function runMonteCarlo(ctx) {
 
     runMCMCLoops(chains, ships, placementsMap);
 
-    valid += collectSamples(chains, counts, seen, valid);
+    valid += collectSamples(chains, counts, seen, valid, sampleBoards);
   }
 
-  return { counts, valid, attempts };
+  return {
+  counts,
+  valid,
+  attempts,
+  sampleBoards: sampleBoards || []
+};
 }
 
 function backtrackPlace(
@@ -2701,7 +2744,7 @@ function runMCMCLoops(chains, ships, placementsMap) {
   }
 }
 
-function collectSamples(chains, counts, seen, validSoFar) {
+function collectSamples(chains, counts, seen, validSoFar, sampleBoards = null) {
   let newValid = 0;
 
   for (let chain of chains) {
@@ -2718,6 +2761,10 @@ function collectSamples(chains, counts, seen, validSoFar) {
 
     seen.add(key);
     newValid++;
+	
+	if (sampleBoards) {
+  sampleBoards.push([...board]);
+}
 
     for (let i = 0; i < 25; i++) {
       if (board[i]) counts[i]++;
