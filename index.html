@@ -7876,13 +7876,12 @@ function getTooltipColorForPlayTile(i) {
 
   const forced = appState.forcedTiles?.[i];
 
-  if (
-    forced &&
-    forced !== 'miss' &&
-    !isAnonymousRareShip(forced)
-  ) {
-    return forced;
-  }
+if (
+  forced &&
+  !isAnonymousRareShip(forced)
+) {
+  return forced;
+}
 
   return null;
 }
