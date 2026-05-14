@@ -89,6 +89,32 @@
     0 2px 5px rgba(0,0,0,0.30);
 }
 
+.color-tooltip {
+  position: fixed;
+  z-index: 9999;
+  pointer-events: none;
+
+  padding: 4px 7px;
+  border-radius: 6px;
+
+  background: rgba(17,24,39,0.92);
+  color: white;
+
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 1;
+
+  box-shadow: 0 2px 6px rgba(0,0,0,0.25);
+
+  opacity: 0;
+  transform: none;
+  transition: opacity 0.08s ease;
+}
+
+.color-tooltip.visible {
+  opacity: 1;
+}
+
 button {
   padding: 6px 10px;
   border-radius: 6px;
@@ -943,6 +969,12 @@ button {
       <button onclick="setRare(4,this)">8</button>
       <button onclick="setRare(5,this)">9</button>
     </div>
+	
+	<div class="section">
+  <button id="colorblindToggleBtn" onclick="toggleColorblindMode(this)">
+    Colorblind Mode
+  </button>
+</div>
 
     <div class="section">
       <span class="label">Game Mode:</span>
@@ -1212,6 +1244,8 @@ const RAW_PLACEMENTS = {
 // ===============================
 
 let currentMode = MODE.NORMAL;
+
+let colorblindMode = false;
 
 let grid = Array(25).fill(null);
 
@@ -7728,6 +7762,12 @@ function getMovesForCurrentGrid(){
 // T.16 EVENT BINDS
 // ===============================
 
+window.toggleColorblindMode = function(btn){
+  colorblindMode = !colorblindMode;
+
+  btn.classList.toggle('active-btn', colorblindMode);
+};
+
 window.toggleGambaHighlight = function() {
   showGambaHighlight = !showGambaHighlight;
   renderUI();
@@ -7823,6 +7863,55 @@ window.loadHash = function(){
   loadFromHash(hash);
 };
 
+function getColorTooltipLabel(color) {
+  if (!color) return null;
+  if (color === 'miss') return 'Blue';
+  return color[0].toUpperCase() + color.slice(1);
+}
+
+function getTooltipColorForPlayTile(i) {
+  if (grid[i] !== null) {
+    return grid[i];
+  }
+
+  const forced = appState.forcedTiles?.[i];
+
+  if (
+    forced &&
+    forced !== 'miss' &&
+    !isAnonymousRareShip(forced)
+  ) {
+    return forced;
+  }
+
+  return null;
+}
+
+function showColorTooltip(label, event) {
+  if (!colorblindMode || !label) return;
+
+  const tooltip = document.getElementById('colorTooltip');
+  if (!tooltip) return;
+
+  tooltip.textContent = label;
+  moveColorTooltip(event);
+  tooltip.classList.add('visible');
+}
+
+function moveColorTooltip(event) {
+  const tooltip = document.getElementById('colorTooltip');
+  if (!tooltip) return;
+
+tooltip.style.left = `${event.clientX - 12}px`;
+tooltip.style.top = `${event.clientY - 36}px`;
+}
+
+function hideColorTooltip() {
+  document
+    .getElementById('colorTooltip')
+    ?.classList.remove('visible');
+}
+
 // ===============================
 // T.17 INITIALIZATION
 // ===============================
@@ -7838,14 +7927,39 @@ for(let i=0;i<25;i++){
   let cell=document.createElement('div');
   cell.className='cell';
   cell.onclick=()=>handleCellClick(i);
-cell.addEventListener('mouseenter', () => queueHeatmapPreview(i));
-cell.addEventListener('mouseleave', cancelHeatmapPreview);
+cell.addEventListener('mouseenter', event => {
+  queueHeatmapPreview(i);
+
+  const color = getTooltipColorForPlayTile(i);
+  showColorTooltip(getColorTooltipLabel(color), event);
+});
+
+cell.addEventListener('mousemove', moveColorTooltip);
+
+cell.addEventListener('mouseleave', () => {
+  cancelHeatmapPreview();
+  hideColorTooltip();
+});
   play.appendChild(cell);
 
   let h=document.createElement('div');
   h.className='cell';
   heat.appendChild(h);
 }
+}
+
+function bindColorblindTooltips() {
+  DOM_LISTS.colorButtons.forEach(btn => {
+    btn.addEventListener('mouseenter', event => {
+      showColorTooltip(
+        getColorTooltipLabel(btn.dataset.color),
+        event
+      );
+    });
+
+    btn.addEventListener('mousemove', moveColorTooltip);
+    btn.addEventListener('mouseleave', hideColorTooltip);
+  });
 }
 
 function cacheDomLists(){
@@ -7866,6 +7980,8 @@ DOM.modeLabel = document.getElementById('modeLabel');
 
 cacheDomLists();
 
+bindColorblindTooltips();
+
 createBoards();
 updateBoardLock();
 updateInfoBox();
@@ -7884,6 +8000,8 @@ updateTopInfoVisibility();
     <button onclick="loadHash()">Load</button>
   </div>
 </div>
+
+<div id="colorTooltip" class="color-tooltip"></div>
 
 </body>
 </html>
