@@ -1336,6 +1336,8 @@ resetModeAndCache();
 ensureConfigLocked();
 setGridCell(i, newColor);
 
+targetRareShipsMode = false;
+
 const { hits, misses } = getHitMissCounts();
 
 if (shouldEndGameOnMiss({
@@ -5996,13 +5998,13 @@ function appendPreGameMessages(messages, ctx) {
       makeCard(
         "Tips",
         `
-        • $OT will not end at 4 blue clicks if you have not yet found 5 non-blue tiles<br><br>
         • 8 and 9 colors default to aggressive mode (finding non-blues.)<br><br>
         • Unclicked guaranteed tiles get stripes in their color. Clicking them before the solver tells you to could lead to worse outcomes. (incl. fill hit button)<br><br>
 	    • After exact solving activates, you can toggle the heatmap to an expected sphere value (EV) heatmap. <br><br>
 	    • While Exact solving is active, you can hover over a tile to get calculations of future probabilities / EV based on the current selected color.<br><br>
         • "Alternative" recommendations are just the 2nd best move. These later become "2-Step Collapse" moves, which calculate 2 moves into the future to reduce board counts.<br><br>
         • EV is shown when probabilities are tied. You can use it to decide tie breakers.
+		• Toggling rare ship targeting only works for the current move. This is intentional.<br><br>
 		`,
         "info-blue info-hint"
       )
