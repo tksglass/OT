@@ -5833,12 +5833,18 @@ return `
     <div class="info-card-header">
       <div class="info-card-title">Ship Status</div>
 
-      <button
-        class="info-card-toggle-btn ${
-          targetRareShipsMode ? 'active-btn' : ''
-        }"
-        onclick="toggleTargetRareShips()"
-      >
+<button
+  class="
+    info-card-toggle-btn
+    ${targetRareShipsMode ? 'active-btn' : ''}
+    ${forcedStartMode === 'safe' ? 'disabled' : ''}
+  "
+  onclick="
+    if (forcedStartMode !== 'safe') {
+      toggleTargetRareShips();
+    }
+  "
+>
         ${
   targetRareShipsMode
     ? 'Targeting Unfound Rare Ships'
