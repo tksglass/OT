@@ -5833,18 +5833,12 @@ return `
     <div class="info-card-header">
       <div class="info-card-title">Ship Status</div>
 
-<button
-  class="
-    info-card-toggle-btn
-    ${targetRareShipsMode ? 'active-btn' : ''}
-    ${forcedStartMode === 'safe' ? 'disabled' : ''}
-  "
-  onclick="
-    if (forcedStartMode !== 'safe') {
-      toggleTargetRareShips();
-    }
-  "
->
+      <button
+        class="info-card-toggle-btn ${
+          targetRareShipsMode ? 'active-btn' : ''
+        }"
+        onclick="toggleTargetRareShips()"
+      >
         ${
   targetRareShipsMode
     ? 'Targeting Unfound Rare Ships'
@@ -6010,7 +6004,7 @@ function appendPreGameMessages(messages, ctx) {
 	    • While Exact solving is active, you can hover over a tile to get calculations of future probabilities / EV based on the current selected color.<br><br>
         • "Alternative" recommendations are just the 2nd best move. These later become "2-Step Collapse" moves, which calculate 2 moves into the future to reduce board counts.<br><br>
         • EV is shown when probabilities are tied. You can use it to decide tie breakers.<br><br>
-		• Toggling rare ship targeting only works for the current move. This is intentional.<br><br>
+		• Toggling rare ship targeting only works for the current move. This is intentional.
 		`,
         "info-blue info-hint"
       )
