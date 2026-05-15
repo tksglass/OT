@@ -1155,6 +1155,7 @@ const DOM = {
   heatmapTitle: null,
   heatmapSubtitle: null,
   heatmapToggleBtn: null,
+  rareTargetToggleBtn: null,
   infoBox: null,
   topInfoBox: null,
   confidence: null,
@@ -5790,12 +5791,14 @@ function updateTopInfoBox() {
     return;
   }
 
-  box.innerHTML = `
-    <div class="top-info-grid">
-      ${buildShipStatusCard()}
-      ${buildModeCard()}
-    </div>
-  `;
+box.innerHTML = `
+  <div class="top-info-grid">
+    ${buildShipStatusCard()}
+    ${buildModeCard()}
+  </div>
+`;
+
+updateRareTargetToggle();
 }
 
 function appendRainbowCandidateCard(messages) {
@@ -5905,12 +5908,11 @@ return `
     <div class="info-card-header">
       <div class="info-card-title">Ship Status</div>
 
-      <button
-        class="info-card-toggle-btn ${
-          targetRareShipsMode ? 'active-btn' : ''
-        }"
-        onclick="toggleTargetRareShips()"
-      >
+<button
+  id="rareTargetToggleBtn"
+  class="info-card-toggle-btn"
+  onclick="toggleTargetRareShips()"
+>
         ${
   targetRareShipsMode
     ? 'Targeting Unfound Rare Ships'
@@ -6079,10 +6081,11 @@ function appendPreGameMessages(messages, ctx) {
         `
         • 8 and 9 colors default to aggressive mode (finding non-blues.)<br><br>
         • Unclicked guaranteed tiles get stripes in their color. Clicking them before the solver tells you to could lead to worse outcomes. (incl. fill hit button)<br><br>
-	    • After exact solving activates, you can toggle the heatmap to an expected sphere value (EV) heatmap. <br><br>
-	    • While Exact solving is active, you can hover over a tile to get calculations of future probabilities / EV based on the current selected color.<br><br>
         • "Alternative" recommendations are just the 2nd best move. These later become "2-Step Collapse" moves, which calculate 2 moves into the future to reduce board counts.<br><br>
         • EV is shown when probabilities are tied. You can use it to decide tie breakers.<br><br>
+		BELOW IS EXACT SOLVING MODE ONLY<br><br>
+		• You can toggle the heatmap to an expected sphere value (EV) heatmap. <br><br>
+	    • You can hover over a tile to get calculations of future probabilities / EV based on the current selected color.<br><br>
 		• Toggling rare ship targeting only works for the current move. This prevents accidentally forgetting to turn it off.
 		`,
         "info-blue info-hint"
@@ -6777,6 +6780,33 @@ function computePreviewProbs(boards) {
   }
 
   return counts.map(c => c / boards.length);
+}
+
+function updateRareTargetToggle() {
+  const btn = document.getElementById('rareTargetToggleBtn');
+  if (!btn) return;
+
+  btn.classList.remove('active-btn', 'disabled');
+
+  const { huntMode } = getGameContext();
+
+  const canToggle =
+    !!appState.allBoards &&
+    !!tileEVStatsCache &&
+    huntMode;
+
+  btn.classList.remove('active-btn', 'disabled');
+
+  if (!canToggle) {
+    btn.classList.add('disabled');
+  }
+
+  if (targetRareShipsMode) {
+    btn.classList.add('active-btn');
+    btn.textContent = 'Targeting Unfound Rare Ships';
+  } else {
+    btn.textContent = 'Toggle Rare Ship Targeting';
+  }
 }
 
 function updateHeatmapToggle() {
@@ -7994,6 +8024,15 @@ function getMovesForCurrentGrid(){
 // ===============================
 
 window.toggleTargetRareShips = function(){
+  const { huntMode } = getGameContext();
+
+  const canToggle =
+    !!appState.allBoards &&
+    !!tileEVStatsCache &&
+    huntMode;
+
+  if (!canToggle) return;
+
   targetRareShipsMode = !targetRareShipsMode;
 
   runSimulation();
