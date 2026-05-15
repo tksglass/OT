@@ -282,6 +282,20 @@ button {
   letter-spacing: 0.3px;
 }
 
+.info-card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.info-card-toggle-btn {
+  font-size: 11px;
+  padding: 4px 8px;
+  border-radius: 6px;
+  white-space: nowrap;
+}
+
 .reset-actions {
   display: grid;
   grid-template-columns: repeat(3, max-content);
@@ -1246,6 +1260,7 @@ const RAW_PLACEMENTS = {
 let currentMode = MODE.NORMAL;
 
 let colorblindMode = false;
+let targetRareShipsMode = false;
 
 let grid = Array(25).fill(null);
 
@@ -5072,11 +5087,16 @@ function rankCandidates(candidates, huntMode) {
     const info = 2 * p * (1 - p);
     const blueRisk = 1 - p;
 
-    const unfoundColorBonus = canUseUnfoundBonus
-      ? getCandidateUnfoundColorBonus(c.i, appState.allBoards)
-      : 0;
+const unfoundColorBonus = canUseUnfoundBonus
+  ? getCandidateUnfoundColorBonus(c.i, appState.allBoards)
+  : 0;
 
-    let score = 0;
+const rareTargetBonus =
+  targetRareShipsMode && canUseUnfoundBonus
+    ? getUnfoundRareProbability(c.i, appState.allBoards)
+    : 0;
+
+let score = 0;
 
 if(phase === "early"){
   const lowMissAggroExplore =
@@ -5125,9 +5145,13 @@ if(phase === "early"){
       score -= blueRisk * 0.1;
     }
 
-    score += (c.i % 7) * 0.0001;
+if (targetRareShipsMode) {
+  score += rareTargetBonus * 2.0;
+}
 
-    c.score = score;
+score += (c.i % 7) * 0.0001;
+
+c.score = score;
   });
 
   candidates.sort((a, b) => b.score - a.score);
@@ -5802,15 +5826,38 @@ function buildShipStatusCard(){
   const tracking = getShipTracking();
   const remainingBlue = getRemainingBlueTiles();
 
-  return makeCard(
-    "Ship Status",
-    `<br>
-    • Incomplete found ships remaining: <span class="stat-number">${tracking.incomplete}</span><br>
-    • Unfound simulated ships: <span class="stat-number">${tracking.unfound}</span><br>
-    • Remaining blue tiles: <span class="stat-number">${remainingBlue}</span>
-    `,
-    "info-blue"
-  );
+return `
+  <div class="info-card info-blue">
+    <div class="info-card-header">
+      <div class="info-card-title">Ship Status</div>
+
+      <button
+        class="info-card-toggle-btn ${
+          targetRareShipsMode ? 'active-btn' : ''
+        }"
+        onclick="toggleTargetRareShips()"
+      >
+        ${
+  targetRareShipsMode
+    ? 'Targeting Unfound Rare Ships'
+    : 'Toggle Rare Ship Targeting'
+}
+      </button>
+    </div>
+
+    <div>
+      <br>
+      • Incomplete found ships remaining:
+      <span class="stat-number">${tracking.incomplete}</span><br>
+
+      • Unfound simulated ships:
+      <span class="stat-number">${tracking.unfound}</span><br>
+
+      • Remaining blue tiles:
+      <span class="stat-number">${remainingBlue}</span>
+    </div>
+  </div>
+`;
 }
 
 function buildModeCard(){
@@ -6264,6 +6311,50 @@ function showError(msg){
 // ===============================
 // T.13 VISUALS
 // ===============================
+
+function getRecommendationTooltipForPlayTile(i) {
+  const cell = DOM.playBoard[i];
+
+if (cell.classList.contains('recommended-high-ev')) {
+  return 'Equivalent Best Movves - Highest EV';
+}
+
+  if (cell.classList.contains('recommended-best')) {
+    if (appState.safeOverride) return 'Safe Mode Clarity Move';
+    if (appState.isGuaranteed) return 'Guaranteed Move';
+    return 'Strategically Valuable';
+  }
+
+  if (cell.classList.contains('recommended-second')) {
+    if (appState.collapseMove) return '2-Step Collapse';
+    return 'Strategically Valuable Alternative';
+  }
+
+  if (cell.classList.contains('recommended-safe')) {
+    return 'Safest Move';
+  }
+
+  if (cell.classList.contains('recommended-progress')) {
+    if (appState.safeOverride) return 'Safe Mode Clarity Move';
+    return 'Optional Clarity Move';
+  }
+
+  if (cell.classList.contains('recommended-danger')) {
+    if (appState.noEquivalencePlan) return 'No-Equivalence Strategy Move';
+    if (appState.uncertaintyMove) return 'Unavoidable Guess';
+    return null;
+  }
+
+  if (cell.classList.contains('recommended-equal')) {
+    return 'Equivalent Best Moves';
+  }
+
+  if (cell.classList.contains('recommended-gamba')) {
+    return 'Gamba Option';
+  }
+
+  return null;
+}
 
 function applyEquivalenceDimming() {
   const play = DOM.playBoard;
@@ -7762,6 +7853,13 @@ function getMovesForCurrentGrid(){
 // T.16 EVENT BINDS
 // ===============================
 
+window.toggleTargetRareShips = function(){
+  targetRareShipsMode = !targetRareShipsMode;
+
+  runSimulation();
+  renderUI();
+};
+
 window.toggleColorblindMode = function(btn){
   colorblindMode = !colorblindMode;
 
@@ -7928,6 +8026,13 @@ for(let i=0;i<25;i++){
   cell.onclick=()=>handleCellClick(i);
 cell.addEventListener('mouseenter', event => {
   queueHeatmapPreview(i);
+
+  const recommendationLabel = getRecommendationTooltipForPlayTile(i);
+
+  if (recommendationLabel) {
+    showColorTooltip(recommendationLabel, event);
+    return;
+  }
 
   const color = getTooltipColorForPlayTile(i);
   showColorTooltip(getColorTooltipLabel(color), event);
