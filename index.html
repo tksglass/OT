@@ -2270,13 +2270,8 @@ function getShipTracking(){
 function getRemainingBlueTiles(){
   const totalCells = 25;
 
-  let shipCells = 0;
-  for(let color in SHIPS){
-    shipCells += getShipSize(color);
-  }
-
-  let totalShips = 0;
-  let ships = getShipList();
+let totalShips = 0;
+let ships = getShipList();
 
 ships.forEach(s => {
   totalShips += getShipSize(s);
@@ -2474,15 +2469,14 @@ function shouldRunExactSolver(ctx) {
 
 if (placedTiles >= 5) return true;
 
-const nonRareHits = grid.filter(color =>
-  color &&
-  color !== 'miss' &&
-  !RARE_COLORS.includes(color)
-).length;
+const { colorCounts } = getGridStats();
 
-const rareHits = grid.filter(color =>
-  RARE_COLORS.includes(color)
-).length;
+const rareHits = RARE_COLORS.reduce(
+  (sum, color) => sum + (colorCounts[color] || 0),
+  0
+);
+
+const nonRareHits = hits - rareHits;
 
 return (
   (placedTiles === 3 && (
@@ -2892,6 +2886,11 @@ if (handleGuaranteedMove(probs, allBoards)) {
 }
 
 if (handleTwoBoardEndgame(valid, probs, allBoards)) {
+  updateExactSolverUI(valid);
+  return;
+}
+
+if (handleTargetRareShipMove(probs, allBoards)) {
   updateExactSolverUI(valid);
   return;
 }
@@ -4505,6 +4504,37 @@ function handleTwoBoardEndgame(valid, probs, allBoards) {
   return true;
 }
 
+function handleTargetRareShipMove(probs, allBoards) {
+  const { huntMode } = getGameContext();
+
+  if (!targetRareShipsMode) return false;
+  if (!huntMode) return false;
+
+  const rareMove = getTargetRareShipMove(allBoards, probs);
+  if (!rareMove) return false;
+
+  appState.probs = probs;
+  appState.topMoves = [rareMove];
+  appState.isTrueEndgame = false;
+  appState.isGuaranteed = false;
+  appState.specialGroup = null;
+  appState.collapseMove = null;
+  appState.safeOverride = true;
+  appState.safeOverrideSource = "targetRareShips";
+
+  clearRecommendations();
+
+  DOM.playBoard[rareMove.i].classList.add('recommended-progress');
+
+  lastProbs = probs;
+  lastTopMoves = [rareMove];
+  lastGuaranteed = false;
+
+  renderForcedOverlays();
+
+  return true;
+}
+
 function handleGuaranteedMove(probs, allBoards) {
   const { huntMode } = getGameContext();
   
@@ -4778,6 +4808,57 @@ function highlightStartingCorners(){
       play[i].classList.add('recommended-equal');
     }
   });
+}
+
+function getTargetRareShipMove(allBoards, probs) {
+  if (!allBoards || allBoards.length === 0) return null;
+
+  const foundColors = getFoundColors();
+  const rareCounts = Array(25).fill(0);
+
+  for (const board of allBoards) {
+    for (let i = 0; i < 25; i++) {
+      if (grid[i] !== null) continue;
+
+      const color = getBoardColorAt(board, i);
+      if (!color) continue;
+
+      const isUnfoundRare =
+        isAnonymousRareShip(color) ||
+        (RARE_COLORS.includes(color) && !foundColors.has(color));
+
+      if (isUnfoundRare) {
+        rareCounts[i]++;
+      }
+    }
+  }
+
+  let bestTile = null;
+  let bestRareP = 0;
+  let bestP = -Infinity;
+
+  for (let i = 0; i < 25; i++) {
+    if (grid[i] !== null) continue;
+
+    const rareP = rareCounts[i] / allBoards.length;
+    const p = probs[i];
+
+    if (
+      rareP > bestRareP ||
+      (rareP === bestRareP && p > bestP)
+    ) {
+      bestTile = i;
+      bestRareP = rareP;
+      bestP = p;
+    }
+  }
+
+  if (bestTile === null || bestRareP <= 0) return null;
+
+  return withSafeMoveReason(
+    makeMoveObject(bestTile),
+    `This tile has the highest chance to reveal an unfound rare ship (${(bestRareP * 100).toFixed(1)}%).`
+  );
 }
 
 function getSafeModeProgressMove(allBoards, probs, options = {}) {
@@ -5093,11 +5174,6 @@ const unfoundColorBonus = canUseUnfoundBonus
   ? getCandidateUnfoundColorBonus(c.i, appState.allBoards)
   : 0;
 
-const rareTargetBonus =
-  targetRareShipsMode && canUseUnfoundBonus
-    ? getUnfoundRareProbability(c.i, appState.allBoards)
-    : 0;
-
 let score = 0;
 
 if(phase === "early"){
@@ -5146,10 +5222,6 @@ if(phase === "early"){
       score += unfoundColorBonus * 0.25;
       score -= blueRisk * 0.1;
     }
-
-if (targetRareShipsMode) {
-  score += rareTargetBonus * 2.0;
-}
 
 score += (c.i % 7) * 0.0001;
 
@@ -5928,13 +6000,20 @@ function appendSafeModeProgressCard(messages) {
 const hasGuaranteedBlue =
   appState.safeOverrideSource === "guaranteedBlue";
 
-const introText = hasGuaranteedBlue
-  ? "Guaranteed blue moves are available, but Safe Mode is prioritizing board clarity instead."
-  : "Normal recommendations overridden to gain board clarity.";
+const isRareTarget =
+  appState.safeOverrideSource === "targetRareShips";
+
+const introText = isRareTarget
+  ? "Rare ship toggle is prioritizing the tile most likely to reveal an unfound rare ship."
+  : hasGuaranteedBlue
+    ? "Guaranteed blue moves are available, but Safe Mode is prioritizing board clarity instead."
+    : "Normal recommendations overridden to gain board clarity.";
 
 messages.push(
-  makeCard(
-    "Safe Mode Clarity Move",
+makeCard(
+  appState.safeOverrideSource === "targetRareShips"
+    ? "Rare Ship Targeting"
+    : "Safe Mode Clarity Move",
     `
       ${introText}
       ${coordText}
@@ -6321,11 +6400,17 @@ if (cell.classList.contains('recommended-high-ev')) {
   return 'Equivalent Best Movves - Highest EV';
 }
 
-  if (cell.classList.contains('recommended-best')) {
-    if (appState.safeOverride) return 'Safe Mode Clarity Move';
-    if (appState.isGuaranteed) return 'Guaranteed Move';
-    return 'Strategically Valuable';
+if (cell.classList.contains('recommended-best')) {
+  if (appState.safeOverride) {
+    return appState.safeOverrideSource === "targetRareShips"
+      ? "Rare Ship Targeting"
+      : "Safe Mode Clarity Move";
   }
+
+  if (appState.isGuaranteed) return 'Guaranteed Move';
+
+  return 'Strategically Valuable';
+}
 
   if (cell.classList.contains('recommended-second')) {
     if (appState.collapseMove) return '2-Step Collapse';
@@ -6336,10 +6421,15 @@ if (cell.classList.contains('recommended-high-ev')) {
     return 'Safest Move';
   }
 
-  if (cell.classList.contains('recommended-progress')) {
-    if (appState.safeOverride) return 'Safe Mode Clarity Move';
-    return 'Optional Clarity Move';
+if (cell.classList.contains('recommended-progress')) {
+  if (appState.safeOverride) {
+    return appState.safeOverrideSource === "targetRareShips"
+      ? "Rare Ship Targeting"
+      : "Safe Mode Clarity Move";
   }
+
+  return 'Optional Clarity Move';
+}
 
   if (cell.classList.contains('recommended-danger')) {
     if (appState.noEquivalencePlan) return 'No-Equivalence Strategy Move';
@@ -6385,14 +6475,6 @@ function applyEquivalenceDimming() {
   forEachMaskBit(forcedBlueMask, i => {
     play[i].classList.add('equivalence-stripe-dim');
   });
-}
-
-function forEachMaskBit(mask, fn) {
-  while (mask) {
-    const bit = mask & -mask;
-    fn(BIT_INDEX[bit]);
-    mask &= mask - 1;
-  }
 }
 
 function resetHeatmapUI() {
@@ -7320,9 +7402,65 @@ function makeCard(title, content, colorClass){
   `;
 }
 
+function getColorTooltipLabel(color) {
+  if (!color) return null;
+  if (color === 'miss') return 'Blue';
+  return color[0].toUpperCase() + color.slice(1);
+}
+
+function getTooltipColorForPlayTile(i) {
+  if (grid[i] !== null) {
+    return grid[i];
+  }
+
+  const forced = appState.forcedTiles?.[i];
+
+if (
+  forced &&
+  !isAnonymousRareShip(forced)
+) {
+  return forced;
+}
+
+  return null;
+}
+
+function showColorTooltip(label, event) {
+  if (!colorblindMode || !label) return;
+
+  const tooltip = document.getElementById('colorTooltip');
+  if (!tooltip) return;
+
+  tooltip.textContent = label;
+  moveColorTooltip(event);
+  tooltip.classList.add('visible');
+}
+
+function moveColorTooltip(event) {
+  const tooltip = document.getElementById('colorTooltip');
+  if (!tooltip) return;
+
+tooltip.style.left = `${event.clientX - 12}px`;
+tooltip.style.top = `${event.clientY - 36}px`;
+}
+
+function hideColorTooltip() {
+  document
+    .getElementById('colorTooltip')
+    ?.classList.remove('visible');
+}
+
 // ===============================
 // T.14 GRID UTILS
 // ===============================
+
+function forEachMaskBit(mask, fn) {
+  while (mask) {
+    const bit = mask & -mask;
+    fn(BIT_INDEX[bit]);
+    mask &= mask - 1;
+  }
+}
 
 function getSolverStateKey() {
   return [
@@ -7962,54 +8100,6 @@ window.loadHash = function(){
 
   loadFromHash(hash);
 };
-
-function getColorTooltipLabel(color) {
-  if (!color) return null;
-  if (color === 'miss') return 'Blue';
-  return color[0].toUpperCase() + color.slice(1);
-}
-
-function getTooltipColorForPlayTile(i) {
-  if (grid[i] !== null) {
-    return grid[i];
-  }
-
-  const forced = appState.forcedTiles?.[i];
-
-if (
-  forced &&
-  !isAnonymousRareShip(forced)
-) {
-  return forced;
-}
-
-  return null;
-}
-
-function showColorTooltip(label, event) {
-  if (!colorblindMode || !label) return;
-
-  const tooltip = document.getElementById('colorTooltip');
-  if (!tooltip) return;
-
-  tooltip.textContent = label;
-  moveColorTooltip(event);
-  tooltip.classList.add('visible');
-}
-
-function moveColorTooltip(event) {
-  const tooltip = document.getElementById('colorTooltip');
-  if (!tooltip) return;
-
-tooltip.style.left = `${event.clientX - 12}px`;
-tooltip.style.top = `${event.clientY - 36}px`;
-}
-
-function hideColorTooltip() {
-  document
-    .getElementById('colorTooltip')
-    ?.classList.remove('visible');
-}
 
 // ===============================
 // T.17 INITIALIZATION
