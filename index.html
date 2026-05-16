@@ -6786,8 +6786,7 @@ function updateRareTargetToggle() {
   btn.classList.remove('active-btn', 'disabled');
 
 const canToggle =
-  !!appState.allBoards &&
-  !!tileEVStatsCache;
+  !!appState.allBoards;
 
   if (!canToggle) {
     btn.classList.add('disabled');
