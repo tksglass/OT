@@ -6007,6 +6007,21 @@ const introText = isRareTarget
   : hasGuaranteedBlue
     ? "Guaranteed blue moves are available, but Safe Mode is prioritizing board clarity instead."
     : "Normal recommendations overridden to gain board clarity.";
+	
+const rareChance =
+  isRareTarget && move
+    ? getUnfoundRareProbability(move.i, appState.allBoards)
+    : 0;
+
+const rareTargetExtraText =
+  isRareTarget && move
+    ? `
+      <br><br>
+      Rare ship chance: ${(rareChance * 100).toFixed(1)}%<br>
+      Non-rare hit chance: ${((move.p - rareChance) * 100).toFixed(1)}%<br>
+      Miss chance: ${((1 - move.p) * 100).toFixed(1)}%
+    `
+    : "";
 
 messages.push(
 makeCard(
@@ -6014,11 +6029,21 @@ makeCard(
     ? "Rare Ship Targeting"
     : "Safe Mode Clarity Move",
     `
+${
+  isRareTarget
+    ? `
+      ${introText}
+      ${coordText}
+      ${rareTargetExtraText}
+    `
+    : `
       ${introText}
       ${coordText}
       <br><br>
       <b>Why this tile?</b><br>
       ${reason}
+    `
+}
     `,
     "info-progress"
   )
@@ -6397,7 +6422,7 @@ function getRecommendationTooltipForPlayTile(i) {
   const cell = DOM.playBoard[i];
 
 if (cell.classList.contains('recommended-high-ev')) {
-  return 'Equivalent Best Movves - Highest EV';
+  return 'Equivalent Best Moves - Highest EV';
 }
 
 if (cell.classList.contains('recommended-best')) {
