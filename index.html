@@ -2881,17 +2881,17 @@ appState.forcedTiles = computeForcedTiles(allBoards);
 
 renderSelectedHeatmap();
 
-if (handleGuaranteedMove(probs, allBoards)) {
-  updateExactSolverUI(valid);
-  return;
-}
-
 if (handleTwoBoardEndgame(valid, probs, allBoards)) {
   updateExactSolverUI(valid);
   return;
 }
 
 if (handleTargetRareShipMove(probs, allBoards)) {
+  updateExactSolverUI(valid);
+  return;
+}
+
+if (handleGuaranteedMove(probs, allBoards)) {
   updateExactSolverUI(valid);
   return;
 }
