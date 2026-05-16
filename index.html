@@ -1606,6 +1606,8 @@ DOM_LISTS.rareButtons.forEach(b=>{
 
 lastAutoFillHitCount = 0;
 updateAutoHitsButton();
+targetRareShipsMode = false;
+showGambaHighlight = false;
 
 }
 
@@ -6811,7 +6813,11 @@ function updateRareTargetToggle() {
   btn.classList.remove('active-btn', 'disabled');
 
 const canToggle =
-  !!appState.allBoards;
+  !!appState.allBoards &&
+  !!getTargetRareShipMove(
+    appState.allBoards,
+    appState.probs
+  );
 
   if (!canToggle) {
     btn.classList.add('disabled');
@@ -8048,8 +8054,12 @@ function getMovesForCurrentGrid(){
 // ===============================
 
 window.toggleTargetRareShips = function(){
-  const canToggle =
-    !!appState.allBoards;
+const canToggle =
+  !!appState.allBoards &&
+  !!getTargetRareShipMove(
+    appState.allBoards,
+    appState.probs
+  );
 
   if (!canToggle) return;
 
