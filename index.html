@@ -7070,9 +7070,17 @@ function highlightRecommendations(probs) {
   clearRecommendations();
 
   const context = getRecommendationContext();
-  const candidates = buildCandidates(probs);
+let candidates = buildCandidates(probs);
 
-  const guaranteed = findGuaranteedMove(candidates, context.huntMode);
+const guaranteed = findGuaranteedMove(candidates, context.huntMode);
+
+if (!guaranteed) {
+  candidates = candidates.filter(c =>
+    context.huntMode
+      ? c.p < 1
+      : c.p > 0
+  );
+}
 
   if (guaranteed) {
     applyGuaranteedMove(guaranteed, probs, play);
