@@ -4506,10 +4506,7 @@ function handleTwoBoardEndgame(valid, probs, allBoards) {
 }
 
 function handleTargetRareShipMove(probs, allBoards) {
-  const { huntMode } = getGameContext();
-
   if (!targetRareShipsMode) return false;
-  if (!huntMode) return false;
 
   const rareMove = getTargetRareShipMove(allBoards, probs);
   if (!rareMove) return false;
@@ -6788,14 +6785,9 @@ function updateRareTargetToggle() {
 
   btn.classList.remove('active-btn', 'disabled');
 
-  const { huntMode } = getGameContext();
-
-  const canToggle =
-    !!appState.allBoards &&
-    !!tileEVStatsCache &&
-    huntMode;
-
-  btn.classList.remove('active-btn', 'disabled');
+const canToggle =
+  !!appState.allBoards &&
+  !!tileEVStatsCache;
 
   if (!canToggle) {
     btn.classList.add('disabled');
@@ -8024,12 +8016,8 @@ function getMovesForCurrentGrid(){
 // ===============================
 
 window.toggleTargetRareShips = function(){
-  const { huntMode } = getGameContext();
-
   const canToggle =
-    !!appState.allBoards &&
-    !!tileEVStatsCache &&
-    huntMode;
+    !!appState.allBoards;
 
   if (!canToggle) return;
 
