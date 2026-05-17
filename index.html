@@ -6450,14 +6450,14 @@ function handleGuaranteedInfo(messages) {
 function handleEndgameInfo(messages, box) {
   if (!appState.isTrueEndgame) return false;
 
-	const forcedHits = getAutoFillForcedHits();
+const forcedHits = getAutoFillForcedHits();
 
 if (
-    getAutoFillForcedHits().length > 0 ||
-    hasGuaranteedUnknownHits()
-  ) {
-    return false;
-  }
+  forcedHits.length > 0 ||
+  hasGuaranteedUnknownHits()
+) {
+  return false;
+}
 
   const play = DOM.playBoard;
   clearRecommendations();
