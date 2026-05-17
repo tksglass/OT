@@ -2490,10 +2490,19 @@ function computeStaticModeForcedTiles() {
 
 function shouldRunExactSolver(ctx) {
   const { hits, placedTiles } = ctx;
+  
+  const { colorCounts } = getGridStats();
+
+const rareHits = RARE_COLORS.reduce(
+  (sum, color) => sum + (colorCounts[color] || 0),
+  0
+);
+
+const nonRareHits = hits - rareHits;
 
   if (rareCount >= 4) {
     return placedTiles >= 4 ||
-      (placedTiles === 3 && hits >= 2);
+      (placedTiles === 3 && nonRareHits >= 2);
   }
 
   if (rareCount <= 2) {
@@ -2502,15 +2511,6 @@ function shouldRunExactSolver(ctx) {
   }
 
 if (placedTiles >= 5) return true;
-
-const { colorCounts } = getGridStats();
-
-const rareHits = RARE_COLORS.reduce(
-  (sum, color) => sum + (colorCounts[color] || 0),
-  0
-);
-
-const nonRareHits = hits - rareHits;
 
 return (
   (placedTiles === 3 && (
