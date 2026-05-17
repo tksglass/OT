@@ -369,7 +369,6 @@ button {
 }
 
 .solver-badge {
-  margin-bottom: 10px;
   padding: 7px 10px;
   border-radius: 8px;
   font-size: 12px;
@@ -513,7 +512,6 @@ button {
 }
 
 .info-card {
-  margin-top: 10px;
   padding: 12px;
   border-radius: 10px;
   background: #f3f4f6;
@@ -5870,23 +5868,26 @@ if (context.missEndsGame) {
 
 if (appState.specialGroup) {
   renderEquivalenceInfo(appState.specialGroup);
-  
-  const solverBadge = buildSolverBadge();
 
-if (solverBadge) {
-  box.innerHTML = solverBadge + box.innerHTML;
-}
-
-  const rainbowCard = buildRainbowCandidateCard(appState.probs, context);
-
-  if (rainbowCard) {
-    box.innerHTML += "<br>" + rainbowCard;
-  }
+  const equivalenceHTML = box.innerHTML;
+  const specialMessages = [];
 
   if (context.missEndsGame) {
-    box.innerHTML = buildMissEndCard(context) + box.innerHTML;
+    specialMessages.push(buildMissEndCard(context));
   }
 
+  specialMessages.push(equivalenceHTML);
+
+  const rainbowCard = buildRainbowCandidateCard(
+    appState.probs,
+    context
+  );
+
+  if (rainbowCard) {
+    specialMessages.push(rainbowCard);
+  }
+
+  renderInfoMessages(specialMessages);
   return;
 }
 
@@ -7888,11 +7889,15 @@ function getMCMCConfidence(valid, attempts) {
 
 function renderInfoMessages(messages) {
   const solverBadge = buildSolverBadge();
-  const solverHTML = solverBadge || "";
+  const parts = [];
 
-  DOM.infoBox.innerHTML =
-    solverHTML +
-    messages.join("<br>");
+  if (solverBadge) {
+    parts.push(solverBadge);
+  }
+
+  parts.push(...messages);
+
+  DOM.infoBox.innerHTML = parts.join("<br>");
 }
 
 function buildSolverBadge() {
