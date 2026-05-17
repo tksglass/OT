@@ -6442,6 +6442,12 @@ function handleGuaranteedInfo(messages) {
 function handleEndgameInfo(messages, box) {
   if (!appState.isTrueEndgame) return false;
 
+	const forcedHits = getAutoFillForcedHits();
+
+if (forcedHits.length > 0) {
+  return false;
+}
+
   const play = DOM.playBoard;
   clearRecommendations();
 
