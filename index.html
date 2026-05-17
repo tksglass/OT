@@ -1155,6 +1155,8 @@ const CELL_MASKS = Array.from(
   (_, i) => 1 << i
 );
 
+const FULL_BOARD_MASK = (1 << 25) - 1;
+
 const COLOR_TO_ID = {
   teal: 0,
   green: 1,
@@ -2132,8 +2134,9 @@ function getKnownCells(color){
   const mask = getGridStats().colorMasks[color] || 0;
   const cells = [];
 
-  for(let i = 0; i < 25; i++){
-    if(mask & CELL_MASKS[i]) cells.push(i);
+  for(let m = mask; m; m &= m - 1){
+    const bit = m & -m;
+    cells.push(BIT_INDEX[bit]);
   }
 
   return cells;
@@ -2211,14 +2214,14 @@ function getFoundColors(){
 }
 
 function getGamePhase(){
-  const { hits, misses } = getHitMissCounts();
-  const foundColors = getFoundShipColorCount();
+  const stats = getGridStats();
+  const { hits, misses, foundColors } = stats;
 
-  if(hits < 5 && foundColors < 3){
+  if(hits < 5 && foundColors.size < 3){
     return "early";
   }
 
-  if(hits >= 5 || misses >= 2 || foundColors >= 5){
+  if(hits >= 5 || misses >= 2 || foundColors.size >= 5){
     return "late";
   }
 
@@ -2226,10 +2229,9 @@ function getGamePhase(){
 }
 
 function isEarlyGame(){
-  const { hits, misses } = getHitMissCounts();
-  const foundColors = getFoundShipColorCount();
+  const stats = getGridStats();
 
-  return hits < 5 && foundColors < 3;
+  return stats.hits < 5 && stats.foundColors.size < 3;
 }
 
 function getFoundShipColorCount(){
@@ -2426,11 +2428,11 @@ function validateStateOrAbort() {
 
 function buildSimulationContext() {
   const { hits, misses, huntMode } = getGameContext();
+  const stats = getGridStats();
 
-  let placedTiles = 0;
-  for(let i = 0; i < 25; i++){
-    if(grid[i] !== null) placedTiles++;
-  }
+  const placedTiles = countMaskBits(
+    stats.occupiedMask | stats.missMask
+  );
 
   const remainingBlue = getRemainingBlueTiles();
   const tracking = getShipTracking();
@@ -2677,16 +2679,33 @@ function mcmcStep(board, ships, placementsMap, knownMissMask = getKnownMissMask(
 
 function scoreBoard(board){
   let score = 0;
+  const stats = getGridStats();
 
-  for(let i = 0; i < 25; i++){
-    if(grid[i] && grid[i] !== 'miss'){
-      if(board[i] === grid[i]) score += 3;
+  for (const color in stats.colorMasks) {
+    let mask = stats.colorMasks[color];
+
+    while (mask) {
+      const bit = mask & -mask;
+      const i = BIT_INDEX[bit];
+
+      if(board[i] === color) score += 3;
       else score -= 10;
-    }
 
-    if(grid[i] === 'miss' && board[i]){
+      mask &= mask - 1;
+    }
+  }
+
+  let missMask = stats.missMask;
+
+  while (missMask) {
+    const bit = missMask & -missMask;
+    const i = BIT_INDEX[bit];
+
+    if(board[i]){
       score -= 10;
     }
+
+    missMask &= missMask - 1;
   }
 
   return score;
@@ -2798,11 +2817,12 @@ function enumerateAllBoardsMaskNative(ships, placementsMap) {
 
       allBoards.push(snapshot);
 
-      for (let i = 0; i < 25; i++) {
-        if (hitMask & CELL_MASKS[i]) {
-          counts[i]++;
-        }
-      }
+for (let mask = hitMask; mask; mask &= mask - 1) {
+  const bit = mask & -mask;
+  const i = BIT_INDEX[bit];
+
+  counts[i]++;
+}
 
       return;
     }
@@ -3807,24 +3827,22 @@ function getOutcomeKey(board, tile) {
 }
 
 function getUnknownTiles(){
-  const tiles = [];
-
-  for(let i = 0; i < 25; i++){
-    if(grid[i] === null){
-      tiles.push(i);
-    }
-  }
-
-  return tiles;
+  const { occupiedMask, missMask } = getGridStats();
+  return getUnknownTilesForKnownMask(occupiedMask | missMask);
 }
 
 function getEffectiveUnknownTilesForPrecalc(){
   const tiles = [];
   const forcedTiles = appState.forcedTiles || {};
   const probs = appState.probs || [];
+  const { occupiedMask, missMask } = getGridStats();
 
-  for(let i = 0; i < 25; i++){
-    if(grid[i] !== null) continue;
+  const unknownMask =
+    FULL_BOARD_MASK & ~(occupiedMask | missMask);
+
+  for(let mask = unknownMask; mask; mask &= mask - 1){
+    const bit = mask & -mask;
+    const i = BIT_INDEX[bit];
 
     if (
       Object.prototype.hasOwnProperty.call(forcedTiles, i)
@@ -3843,27 +3861,12 @@ function getEffectiveUnknownTilesForPrecalc(){
 }
 
 function getCurrentKnownMask() {
-  let mask = 0;
-
-  for (let i = 0; i < 25; i++) {
-    if (grid[i] !== null) {
-      mask |= CELL_MASKS[i];
-    }
-  }
-
-  return mask;
+  const { occupiedMask, missMask } = getGridStats();
+  return occupiedMask | missMask;
 }
 
 function getUnknownTilesFromKnownMask(knownMask) {
-  const tiles = [];
-
-  for (let i = 0; i < 25; i++) {
-    if ((knownMask & CELL_MASKS[i]) === 0) {
-      tiles.push(i);
-    }
-  }
-
-  return tiles;
+  return getUnknownTilesForKnownMask(knownMask);
 }
 
 function bucketBoardsByOutcome(boards, tile) {
@@ -4387,11 +4390,11 @@ function getFutureCollapseDepth(boardCount) {
 
 function getUnknownTilesForKnownMask(knownMask) {
   const tiles = [];
+  const unknownMask = FULL_BOARD_MASK & ~knownMask;
 
-  for (let i = 0; i < 25; i++) {
-    if ((knownMask & CELL_MASKS[i]) === 0) {
-      tiles.push(i);
-    }
+  for (let mask = unknownMask; mask; mask &= mask - 1) {
+    const bit = mask & -mask;
+    tiles.push(BIT_INDEX[bit]);
   }
 
   return tiles;
@@ -4399,27 +4402,30 @@ function getUnknownTilesForKnownMask(knownMask) {
 
 function getFutureCollapseCandidates(boardSet, knownMask, ctx) {
   const boardCount = getBoardSetCount(boardSet, ctx);
-  const tiles = getUnknownTilesForKnownMask(knownMask);
+  const unknownMask = FULL_BOARD_MASK & ~knownMask;
 
-const scored = [];
-const maxSplitScore = boardCount * boardCount;
+  const scored = [];
+  const maxSplitScore = boardCount * boardCount;
 
-for (const i of tiles) {
-  const splitScore = getTileSplitScoreForBoardSet(
-    i,
-    boardSet,
-    ctx
-  );
+  for (let mask = unknownMask; mask; mask &= mask - 1) {
+    const bit = mask & -mask;
+    const i = BIT_INDEX[bit];
 
-  if (splitScore < maxSplitScore) {
-    scored.push({ i, splitScore });
+    const splitScore = getTileSplitScoreForBoardSet(
+      i,
+      boardSet,
+      ctx
+    );
+
+    if (splitScore < maxSplitScore) {
+      scored.push({ i, splitScore });
+    }
   }
-}
 
-return scored
-  .sort((a, b) => a.splitScore - b.splitScore)
-  .slice(0, FUTURE_COLLAPSE_SHORTLIST)
-  .map(c => c.i);
+  return scored
+    .sort((a, b) => a.splitScore - b.splitScore)
+    .slice(0, FUTURE_COLLAPSE_SHORTLIST)
+    .map(c => c.i);
 }
 
 function evaluateFutureCollapseState(
@@ -5028,7 +5034,8 @@ function getPartialShipTiles(){
       let placements = getPlacementsCached(color);
 
       placements.forEach(p => {
-        const unknownPlacementMask = p.mask & ~knownMask;
+        const unknownPlacementMask =
+  p.mask & (FULL_BOARD_MASK & ~knownMask);
 
         for(let mask = unknownPlacementMask; mask; mask &= mask - 1){
           const bit = mask & -mask;
@@ -5079,20 +5086,27 @@ function getTargetRareShipMove(allBoards, probs) {
   if (!allBoards || allBoards.length === 0) return null;
 
   const getScore = makeCollapseScoreGetter(allBoards, probs);
+  const { occupiedMask, missMask } = getGridStats();
+  const unknownMask = FULL_BOARD_MASK & ~(occupiedMask | missMask);
 
-  const candidates = getUnknownTiles()
-    .map(i => {
-      const rareP = getUnfoundRareProbability(i, allBoards);
-      const collapse = getScore(i);
+  const candidates = [];
 
-      return {
-        i,
-        p: probs[i],
-        rareP,
-        expectedRemaining: collapse.expectedRemaining
-      };
-    })
-    .filter(c => c.rareP > 0);
+  for (let mask = unknownMask; mask; mask &= mask - 1) {
+    const bit = mask & -mask;
+    const i = BIT_INDEX[bit];
+
+    const rareP = getUnfoundRareProbability(i, allBoards);
+    if (rareP <= 0) continue;
+
+    const collapse = getScore(i);
+
+    candidates.push({
+      i,
+      p: probs[i],
+      rareP,
+      expectedRemaining: collapse.expectedRemaining
+    });
+  }
 
   if (!candidates.length) return null;
 
@@ -7989,6 +8003,17 @@ function forEachMaskBit(mask, fn) {
     fn(BIT_INDEX[bit]);
     mask &= mask - 1;
   }
+}
+
+function countMaskBits(mask) {
+  let count = 0;
+
+  while (mask) {
+    count++;
+    mask &= mask - 1;
+  }
+
+  return count;
 }
 
 function getSolverStateKey() {
