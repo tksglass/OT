@@ -2298,6 +2298,14 @@ function getShipTracking(){
   return { incomplete, unfound };
 }
 
+	function hasGuaranteedUnknownHits() {
+  return appState.probs?.some((p, i) =>
+    grid[i] === null &&
+    p === 1 &&
+    !appState.forcedTiles?.[i]
+  );
+}
+
 function getRemainingBlueTiles(){
   const totalCells = 25;
 
@@ -6444,9 +6452,12 @@ function handleEndgameInfo(messages, box) {
 
 	const forcedHits = getAutoFillForcedHits();
 
-if (forcedHits.length > 0) {
-  return false;
-}
+if (
+    getAutoFillForcedHits().length > 0 ||
+    hasGuaranteedUnknownHits()
+  ) {
+    return false;
+  }
 
   const play = DOM.playBoard;
   clearRecommendations();
