@@ -3201,8 +3201,13 @@ if (
 ======= NEXT STEP PRESERVES UNAVOIDABLE GUESS ===========
 */
 
-appState.uncertaintyMove =
-  getBestUncertaintyRemovalMove(allBoards, probs);
+if (
+  allBoards.length <= PRECALC_BOARD_LIMIT &&
+  effectiveUnknownTiles.length <= PRECALC_UNKNOWN_TILE_LIMIT
+) {
+  appState.uncertaintyMove =
+    getBestUncertaintyRemovalMove(allBoards, probs);
+}
 
 const analysis = analyzeEquivalence(allBoards, probs);
 analysis.collapseMove = getBestTwoStepCollapseMove(allBoards, probs);
