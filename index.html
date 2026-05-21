@@ -3184,6 +3184,7 @@ if (handleGuaranteedMove(probs, allBoards)) {
 
 const effectiveUnknownTiles = getEffectiveUnknownTilesForPrecalc();
 
+/* ======== DISABLE NO EQUIVALENCE MOVE ===========
 if (
   allBoards.length <= PRECALC_BOARD_LIMIT &&
   effectiveUnknownTiles.length <= PRECALC_UNKNOWN_TILE_LIMIT
@@ -3195,10 +3196,13 @@ if (
     updateExactSolverUI(valid);
     return;
   }
-
-  appState.uncertaintyMove =
-    getBestUncertaintyRemovalMove(allBoards, probs);
 }
+
+======= NEXT STEP PRESERVES UNAVOIDABLE GUESS ===========
+*/
+
+appState.uncertaintyMove =
+  getBestUncertaintyRemovalMove(allBoards, probs);
 
 const analysis = analyzeEquivalence(allBoards, probs);
 analysis.collapseMove = getBestTwoStepCollapseMove(allBoards, probs);
@@ -8535,10 +8539,32 @@ function buildSolverBadge() {
   const info = appState.solverInfo;
   if (!info) return "";
 
+  const probs = appState.probs || [];
+
+  const unknownTiles = probs.filter((p, i) =>
+    grid[i] == null
+  );
+
+  const deterministicBoard =
+    unknownTiles.length > 0 &&
+    unknownTiles.every(p => p === 0 || p === 1);
+
+  let deterministicText = "";
+
+  if (deterministicBoard) {
+    deterministicText = `
+      <br><br>
+      <b>Solved!</b><br>
+      The board is now fully solved, but exact color locations may not be clear yet.
+    `;
+  }
+
   if (info.type === "exact") {
     return `
       <div class="solver-badge exact">
-        Solver mode: Exact Enumeration <br>Boards: ${info.boards}
+        Solver mode: Exact Enumeration
+        <br>Boards: ${info.boards}
+        ${deterministicText}
       </div>
     `;
   }
@@ -8548,7 +8574,8 @@ function buildSolverBadge() {
   return `
     <div class="solver-badge mcmc">
       Solver mode: MCMC Simulation
-	  <br>· ${confidence} confidence; Valid samples: ${info.valid}
+      <br>· ${confidence} confidence; Valid samples: ${info.valid}
+      ${deterministicText}
     </div>
   `;
 }
