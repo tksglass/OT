@@ -5539,9 +5539,18 @@ if (rareCandidates.length) {
       : 1;
 
   if (improvement < 1.6) {
-    bestRare = rareCandidates.reduce((best, c) =>
-      (c.rareP > (best?.rareP ?? -Infinity)) ? c : best
-    , null);
+bestRare = rareCandidates
+  .map(c => ({
+    ...c,
+    expectedRemaining: getScore(c.i).expectedRemaining
+  }))
+  .sort((a, b) => {
+    if (b.rareP !== a.rareP) return b.rareP - a.rareP;
+    if (a.expectedRemaining !== b.expectedRemaining) {
+      return a.expectedRemaining - b.expectedRemaining;
+    }
+    return a.i - b.i;
+  })[0];
   }
 
   return withSafeMoveReason(
