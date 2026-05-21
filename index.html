@@ -7989,7 +7989,21 @@ function getDisplayedRecommendations(
       ? safestArg
       : topMoves.find(m => m.type === "safe") || null;
 
-  const strategicMoves = topMoves.filter(m => m.type !== "safe");
+  const strategicMoves = topMoves.filter(m => {
+  if (m.type === "safe") {
+    return false;
+  }
+
+  if (
+    forcedStartMode === "safe" &&
+    appState.probs &&
+    appState.probs[m.i] >= 1
+  ) {
+    return false;
+  }
+
+  return true;
+});
 
   const best =
     strategicMoves.find(m => !isSameMove(m, safest)) || null;
