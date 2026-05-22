@@ -2743,8 +2743,10 @@ if (placedTiles >= 5) return true;
 
 return (
   (placedTiles === 3 && (
-    nonRareHits >= 1 ||
-    rareHits >= 2
+    colorCounts.green >= 1 ||
+    colorCounts.yellow >= 1 ||
+    rareHits >= 2 ||
+    (colorCounts.teal >= 1 && rareHits >= 1)
   )) ||
   (placedTiles === 4 && hits >= 1)
 );
