@@ -68,6 +68,15 @@
     inset 0 1px 2px rgba(255,255,255,0.65);
 }
 
+.board.stagger-col-5 {
+  grid-template-columns: repeat(4, 50px);
+}
+
+.board.stagger-col-5 .cell:nth-child(5n) {
+  grid-column: 1 / -1;
+  justify-self: start;
+}
+
 .color-btn[data-color="rainbow"] {
   background:
     linear-gradient(
@@ -1013,12 +1022,17 @@ button {
 	
 	<div class="section">
   <button id="colorblindToggleBtn" onclick="toggleColorblindMode(this)">
-    Colorblind Mode
+    Colorblind
   </button>
+  
+   <button id="staggerBoardToggleBtn" onclick="toggleStaggerBoardMode(this)">
+    Broken Grid
+  </button>
+  
 </div>
 
     <div class="section">
-      <span class="label">Game Mode:</span>
+      <span class="label">Mode:</span>
 <button id="modeSafe" onclick="setMode('safe', this)">
   Safe
 </button>
@@ -1290,6 +1304,8 @@ const RAW_PLACEMENTS = {
 // ===============================
 // T.02 GLOBAL STATE
 // ===============================
+
+let staggerBoardMode = false;
 
 let currentMode = MODE.NORMAL;
 
@@ -9220,6 +9236,18 @@ function getMovesForCurrentGrid(){
 // ===============================
 // T.16 EVENT BINDS
 // ===============================
+
+window.toggleStaggerBoardMode = function(btn){
+  staggerBoardMode = !staggerBoardMode;
+
+  btn.classList.toggle('active-btn', staggerBoardMode);
+
+  document.getElementById('playBoard')
+    ?.classList.toggle('stagger-col-5', staggerBoardMode);
+
+  document.getElementById('heatmap')
+    ?.classList.toggle('stagger-col-5', staggerBoardMode);
+};
 
 window.toggleTargetRareShips = function(){
 const canToggle =
