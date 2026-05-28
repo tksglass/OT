@@ -4901,12 +4901,22 @@ function chooseLowestIndexCandidate(pool) {
 }
 
 function applyTiebreakLayer(pool, getValue, higherIsBetter, reason, passed) {
-  const nextPool = keepBestCandidates(pool, getValue, higherIsBetter);
+  const originalCount = pool.length;
+
+  const nextPool = keepBestCandidates(
+    pool,
+    getValue,
+    higherIsBetter
+  );
 
   return {
     pool: nextPool,
     winner: nextPool.length === 1
-      ? withTiebreaker(nextPool[0], reason, passed)
+      ? withTiebreaker(
+          nextPool[0],
+          `${reason} (${originalCount} candidates)`,
+          passed
+        )
       : null
   };
 }
@@ -5869,7 +5879,7 @@ function highlightStartingCorners(){
   const { huntMode } = getGameContext();
 
   const openingTiles = huntMode
-    ? [6, 8, 16, 18]              
+    ? [7, 11, 13, 17]              
     : [0, 4, 20, 24];  
 
   openingTiles.forEach(i => {
@@ -8082,7 +8092,7 @@ function getOpeningHintText(){
   const { huntMode } = getGameContext();
 
   return huntMode
-    ? "Aggressive opening: any of the semi-corners are equally optimal starting moves."
+    ? "Aggressive opening: any tiles adjacent to center are equally optimal starting moves."
     : "Safe opening: all four corners are equally optimal starting moves.";
 }
 
