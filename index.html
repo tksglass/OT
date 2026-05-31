@@ -8924,14 +8924,23 @@ function handleGuaranteedInfo(messages) {
 function handleEndgameInfo(messages, box, context) {
   if (!appState.isTrueEndgame) return false;
 
-  const forcedHits = getAutoFillForcedHits();
+const forcedTiles = appState.forcedTiles || {};
 
-  if (
-    (forcedHits.length > 0 && context?.missEndsGame) ||
-    hasGuaranteedUnknownHits()
-  ) {
-    return false;
-  }
+const hasFreeKnownBlue = Object.entries(forcedTiles).some(([index, color]) =>
+  grid[Number(index)] === null &&
+  color === "miss" &&
+  !context?.missEndsGame
+);
+
+const forcedHits = getAutoFillForcedHits();
+
+if (
+  hasFreeKnownBlue ||
+  (forcedHits.length > 0 && context?.missEndsGame) ||
+  hasGuaranteedUnknownHits()
+) {
+  return false;
+}
 
   const play = DOM.playBoard;
   clearRecommendations();
