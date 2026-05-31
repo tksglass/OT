@@ -8381,11 +8381,18 @@ function appendFinalDecisionSetupCard(messages) {
 
   const [r, c] = indexToCoord(move.i);
 
+  const isGuaranteedFinalDecision =
+    move.worstRemaining === 1;
+
+  const introText = isGuaranteedFinalDecision
+    ? "Every possible outcome on this tile leads to Final Decision."
+    : "At least one possible outcome on this tile leads to Final Decision.";
+
   messages.push(
     makeCard(
       "Final Decision Setup",
       `
-        Every possible outcome on this tile leads to Final Decision.
+        ${introText}
         <br><br>
         <b>Row ${r + 1}, Col ${c + 1}</b>
         <br>
