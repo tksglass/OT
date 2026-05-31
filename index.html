@@ -1069,6 +1069,17 @@ button {
   );
 }
 
+.playboard-actions {
+  display: flex;
+  justify-content: center;
+  margin-top: 12px;
+}
+
+.playboard-actions .info-card-toggle-btn {
+  font-size: 12px;
+  padding: 6px 10px;
+}
+
 .playboard-header {
   display: flex;
   align-items: center;
@@ -1218,6 +1229,16 @@ button {
 
 <div class="board-wrapper">
   <div id="playBoard" class="board disabled"></div>
+</div>
+
+<div class="playboard-actions">
+  <button
+    id="rareTargetToggleBtn"
+    class="info-card-toggle-btn"
+    onclick="toggleTargetRareShips()"
+  >
+    Toggle Rare Ship Targeting
+  </button>
 </div>
 </div>
 <br>
@@ -8678,21 +8699,9 @@ function buildShipStatusCard(){
 
 return `
   <div class="info-card info-blue">
-    <div class="info-card-header">
-      <div class="info-card-title">Ship Status</div>
-
-<button
-  id="rareTargetToggleBtn"
-  class="info-card-toggle-btn"
-  onclick="toggleTargetRareShips()"
->
-        ${
-  targetRareShipsMode
-    ? 'Targeting Unfound Rare Ships'
-    : 'Toggle Rare Ship Targeting'
-}
-      </button>
-    </div>
+<div class="info-card-header">
+  <div class="info-card-title">Ship Status</div>
+</div>
 
     <div>
       <br>
