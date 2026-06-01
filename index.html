@@ -11778,10 +11778,16 @@ cell.addEventListener('contextmenu', event => {
   event.preventDefault();
   event.stopPropagation();
 
+  cancelHeatmapPreview();
+  clearHeatmapPreview();
+  hideColorTooltip();
+
   if (currentMode === MODE.GAME_OVER) return;
   if (rareCount === null) return;
 
-  placeColorAs(i, 'miss');
+  if (grid[i] !== 'miss') {
+    placeColorAs(i, 'miss');
+  }
 });
 
 cell.addEventListener('mouseenter', event => {
