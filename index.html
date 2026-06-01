@@ -1583,22 +1583,6 @@ setGridCell(i, newColor);
 
 targetRareShipsMode = false;
 
-const { hits, misses } = getHitMissCounts();
-
-if (shouldEndGameOnMiss({
-  newColor,
-  hits,
-  misses
-})) {
-  commitAcceptedMove({
-    index: i,
-    prevColor,
-    newColor,
-    historySnapshot
-  });
-  return;
-}
-
 if (!isValidPlacement(i, prevColor)) {
   grid[i] = prevColor;
 
@@ -1617,6 +1601,22 @@ if (!isValidPlacement(i, prevColor)) {
   render();
   renderUI();
   updateColorAvailability();
+  return;
+}
+
+const { hits, misses } = getHitMissCounts();
+
+if (shouldEndGameOnMiss({
+  newColor,
+  hits,
+  misses
+})) {
+  commitAcceptedMove({
+    index: i,
+    prevColor,
+    newColor,
+    historySnapshot
+  });
   return;
 }
 
