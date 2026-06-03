@@ -2310,6 +2310,7 @@ function hasValidPlacementsForAllShips() {
 function shouldHideBestStrategicMove(ctx = getInfoContext()) {
   return (
     !!appState.noEquivalencePlan?.length ||
+    !!appState.finalDecisionMove ||
     !!appState.resolutionOpportunityMove ||
     (
       !ctx?.missEndsGame &&
@@ -6477,15 +6478,17 @@ function getFinalDecisionSetupMove(allBoards, probs) {
 
   if (result.winner) return result.winner;
 
-  result = applyTiebreakLayer(
-    result.pool,
-    c => c.p,
-    false,
-    "Lower hit chance",
-    2
-  );
+result = applyTiebreakLayer(
+  result.pool,
+  c => c.p,
+  false,
+  "Lower hit chance",
+  2
+);
 
-  return result.winner || result.pool[0] || null;
+if (result.winner) return result.winner;
+
+return finishWithLowestIndex(result.pool, 3);
 }
 
 function scoreFinalDecisionSetupTile(tile, boardSet, boardCount, ctx, probs) {
@@ -8402,12 +8405,8 @@ function appendFinalDecisionSetupCard(messages) {
 
   const [r, c] = indexToCoord(move.i);
 
-  const isGuaranteedFinalDecision =
-    move.worstRemaining === 1;
-
-  const introText = isGuaranteedFinalDecision
-    ? "Every possible outcome on this tile leads to Final Decision."
-    : "At least one possible outcome on this tile leads to Final Decision.";
+const introText =
+  "Every possible outcome on this tile leads to Final Decision or better.";
 
   messages.push(
     makeCard(
