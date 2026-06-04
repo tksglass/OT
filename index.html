@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 
 <!-- 
@@ -7502,7 +7503,7 @@ function getCandidateReduction(c) {
 function getSafestMove(candidates, huntMode = false) {
   if (!candidates.length) return null;
 
-  const RISK_BAND = 0.015;
+  const RISK_BAND = 0.05;
 
   const getPrimaryChance = huntMode
     ? candidate => candidate.p
@@ -7518,46 +7519,196 @@ function getSafestMove(candidates, huntMode = false) {
 
   if (pool.length === 1) return pool[0];
 
-  let result = applyTiebreakLayer(
-    pool,
-    getCandidateReduction,
-    true,
-    huntMode
-      ? "Higher board reduction within aggressive hit band"
-      : "Higher board reduction within safe risk band",
-    0
-  );
+pool.forEach(candidate => {
+  if (!candidate.undiscoveredShip) {
+    candidate.undiscoveredShip =
+      getUndiscoveredShipTiebreakStats(
+        candidate.i,
+        appState.allBoards
+      );
+  }
+});
 
-  if (result.winner) return result.winner;
-  pool = result.pool;
+let result;
+let layer = 0;
 
-  result = applyTiebreakLayer(
-    pool,
-    getPrimaryChance,
-    true,
-    huntMode
-      ? "Higher hit chance after equal reduction"
-      : "Higher miss chance after equal reduction",
-    1
-  );
-
-  if (result.winner) return result.winner;
-  pool = result.pool;
+for (const size of [4, 3, 2]) {
+  if (!poolHasUndiscoveredShipSize(pool, size)) {
+    continue;
+  }
 
   result = applyTiebreakLayer(
     pool,
-    candidate => getCandidateWeightedEV(candidate.i),
+    candidate => candidate.undiscoveredShip[`size${size}`],
     true,
-    huntMode
-      ? "Higher expected value among equal-reduction and hit-chance candidates"
-      : "Higher expected value among equal-reduction and miss-chance candidates",
-    2
+    `Higher chance to reveal undiscovered size-${size} ship within safety band`,
+    layer
   );
 
   if (result.winner) return result.winner;
-  pool = result.pool;
 
-  return finishWithLowestIndex(pool, 3);
+  pool = result.pool;
+  layer++;
+}
+
+result = applyTiebreakLayer(
+  pool,
+  getCandidateReduction,
+  true,
+  "Higher board reduction after equal undiscovered-ship chance",
+  layer
+);
+
+if (result.winner) return result.winner;
+pool = result.pool;
+layer++;
+
+result = applyTiebreakLayer(
+  pool,
+  getPrimaryChance,
+  true,
+  huntMode
+    ? "Higher hit chance after equal undiscovered-ship chance and reduction"
+    : "Higher miss chance after equal undiscovered-ship chance and reduction",
+  layer
+);
+
+if (result.winner) return result.winner;
+pool = result.pool;
+layer++;
+
+result = applyTiebreakLayer(
+  pool,
+  candidate => getCandidateWeightedEV(candidate.i),
+  true,
+  "Higher expected value among equal safe candidates",
+  layer
+);
+
+if (result.winner) return result.winner;
+pool = result.pool;
+layer++;
+
+  return finishWithLowestIndex(pool, layer);
+}
+
+function poolHasUndiscoveredShipSize(pool, size) {
+  return pool.some(candidate =>
+    candidate.undiscoveredShip?.[`size${size}`] > 0
+  );
+}
+
+function getUndiscoveredShipTierForColor(
+  color,
+  colorCounts = getGridStats().colorCounts
+) {
+  if (!color) return 0;
+
+  if (isAnonymousRareShip(color)) {
+    return 2;
+  }
+
+  if (RARE_COLORS.includes(color)) {
+    return colorCounts[color] === 0 ? 2 : 0;
+  }
+
+  if (!SHIPS[color]) return 0;
+
+  if (colorCounts[color] > 0) {
+    return 0;
+  }
+
+  return getShipSize(color);
+}
+
+function getUndiscoveredShipTiebreakStats(tile, allBoards) {
+  const stats = {
+    size4: 0,
+    size3: 0,
+    size2: 0
+  };
+
+  if (!allBoards || !allBoards.length) {
+    return stats;
+  }
+
+  const colorCounts = getGridStats().colorCounts;
+  const invBoardCount = 1 / allBoards.length;
+
+  for (const board of allBoards) {
+    const color = getBoardColorAt(board, tile);
+    const tier = getUndiscoveredShipTierForColor(color, colorCounts);
+
+    if (tier === 4) {
+      stats.size4++;
+    } else if (tier === 3) {
+      stats.size3++;
+    } else if (tier === 2) {
+      stats.size2++;
+    }
+  }
+
+  stats.size4 *= invBoardCount;
+  stats.size3 *= invBoardCount;
+  stats.size2 *= invBoardCount;
+
+  return stats;
+}
+
+function compareUndiscoveredShipTiebreak(a, b) {
+  const size4Diff =
+    b.undiscoveredShip.size4 - a.undiscoveredShip.size4;
+
+  if (Math.abs(size4Diff) > 0.000001) {
+    return size4Diff;
+  }
+
+  const size3Diff =
+    b.undiscoveredShip.size3 - a.undiscoveredShip.size3;
+
+  if (Math.abs(size3Diff) > 0.000001) {
+    return size3Diff;
+  }
+
+  const size2Diff =
+    b.undiscoveredShip.size2 - a.undiscoveredShip.size2;
+
+  if (Math.abs(size2Diff) > 0.000001) {
+    return size2Diff;
+  }
+
+  return 0;
+}
+
+function getUndiscoveredShipTiebreakLabel(current, next) {
+  if (
+    Math.abs(
+      current.undiscoveredShip.size4 -
+      next.undiscoveredShip.size4
+    ) > 0.000001
+  ) {
+    return "Higher chance to reveal undiscovered size-4 ship";
+  }
+
+  if (
+    Math.abs(
+      current.undiscoveredShip.size3 -
+      next.undiscoveredShip.size3
+    ) > 0.000001
+  ) {
+    return "Higher chance to reveal undiscovered size-3 ship";
+  }
+
+  if (
+    Math.abs(
+      current.undiscoveredShip.size2 -
+      next.undiscoveredShip.size2
+    ) > 0.000001
+  ) {
+    return "Higher chance to reveal undiscovered size-2 ship";
+  }
+
+  return null;
 }
 
 function scoreStrategicCandidate(c, huntMode) {
@@ -7631,6 +7782,8 @@ function rankCandidates(candidates, huntMode) {
     c.reduction = getCandidateReduction(c);
     c.score = scoreStrategicCandidate(c, huntMode);
     c.ev = getCandidateWeightedEV(c.i);
+    c.undiscoveredShip =
+      getUndiscoveredShipTiebreakStats(c.i, appState.allBoards);
     c.tiebreaker = null;
     c.tiebreakerPassed = null;
   });
@@ -7639,8 +7792,27 @@ function rankCandidates(candidates, huntMode) {
     const scoreDiff = b.score - a.score;
     if (Math.abs(scoreDiff) > 0.000001) return scoreDiff;
 
-    const reductionDiff = b.reduction - a.reduction;
-    if (Math.abs(reductionDiff) > 0.000001) return reductionDiff;
+    if (huntMode) {
+      const undiscoveredDiff =
+        compareUndiscoveredShipTiebreak(a, b);
+
+      if (undiscoveredDiff !== 0) {
+        return undiscoveredDiff;
+      }
+
+      const reductionDiff = b.reduction - a.reduction;
+      if (Math.abs(reductionDiff) > 0.000001) return reductionDiff;
+    } else {
+      const reductionDiff = b.reduction - a.reduction;
+      if (Math.abs(reductionDiff) > 0.000001) return reductionDiff;
+
+      const undiscoveredDiff =
+        compareUndiscoveredShipTiebreak(a, b);
+
+      if (undiscoveredDiff !== 0) {
+        return undiscoveredDiff;
+      }
+    }
 
     const pDiff = b.p - a.p;
     if (Math.abs(pDiff) > 0.000001) return pDiff;
@@ -7657,24 +7829,96 @@ function rankCandidates(candidates, huntMode) {
 
     if (Math.abs(current.score - next.score) > 0.000001) continue;
 
+    if (huntMode) {
+      const undiscoveredLabel =
+        getUndiscoveredShipTiebreakLabel(current, next);
+
+      if (undiscoveredLabel) {
+current.tiebreaker = withCandidateCount(
+  `${undiscoveredLabel} after equal strategic score`,
+  candidates.length
+);
+        current.tiebreakerPassed = 1;
+        continue;
+      }
+
+      if (Math.abs(current.reduction - next.reduction) > 0.000001) {
+       current.tiebreaker = withCandidateCount(
+  "Higher board reduction after equal strategic score and undiscovered-ship chance",
+  candidates.length
+);
+        current.tiebreakerPassed = 2;
+        continue;
+      }
+
+      if (Math.abs(current.p - next.p) > 0.000001) {
+        current.tiebreaker = withCandidateCount(
+  "Higher hit chance among candidates",
+  candidates.length
+);
+        current.tiebreakerPassed = 3;
+        continue;
+      }
+
+      if (Math.abs(current.ev - next.ev) > 0.000001) {
+        current.tiebreaker = withCandidateCount(
+  "Higher expected value among candidates",
+  candidates.length
+);
+        current.tiebreakerPassed = 4;
+      } else {
+        current.tiebreaker = withCandidateCount(
+  "Lowest tile index (could not break tie)",
+  candidates.length
+);
+        current.tiebreakerPassed = 5;
+      }
+
+      continue;
+    }
+
     if (Math.abs(current.reduction - next.reduction) > 0.000001) {
-      current.tiebreaker = "Higher board reduction after equal strategic score";
+      current.tiebreaker = withCandidateCount(
+  "Higher board reduction after equal strategic score",
+  candidates.length
+);
       current.tiebreakerPassed = 1;
       continue;
     }
 
-    if (Math.abs(current.p - next.p) > 0.000001) {
-      current.tiebreaker = "Higher hit chance among candidates";
+    const undiscoveredLabel =
+      getUndiscoveredShipTiebreakLabel(current, next);
+
+    if (undiscoveredLabel) {
+current.tiebreaker = withCandidateCount(
+  `${undiscoveredLabel} after equal strategic score and board reduction`,
+  candidates.length
+);
       current.tiebreakerPassed = 2;
       continue;
     }
 
-    if (Math.abs(current.ev - next.ev) > 0.000001) {
-      current.tiebreaker = "Higher expected value among candidates";
+    if (Math.abs(current.p - next.p) > 0.000001) {
+      current.tiebreaker = withCandidateCount(
+  "Higher hit chance among candidates",
+  candidates.length
+);
       current.tiebreakerPassed = 3;
-    } else {
-      current.tiebreaker = "Lowest tile index (could not break tie)";
+      continue;
+    }
+
+    if (Math.abs(current.ev - next.ev) > 0.000001) {
+      current.tiebreaker = withCandidateCount(
+  "Higher expected value among candidates",
+  candidates.length
+);
       current.tiebreakerPassed = 4;
+    } else {
+      current.tiebreaker = withCandidateCount(
+  "Lowest tile index (could not break tie)",
+  candidates.length
+);
+      current.tiebreakerPassed = 5;
     }
   }
 }
@@ -7994,21 +8238,36 @@ function renderRecommendationsIfNeeded(hasStarted) {
   if (!hasStarted) return;
 
   if (
-  appState.forcedResolutionMove &&
-  appState.forcedResolutionMove.i !== undefined
-) {
-  clearRecommendations();
+    appState.forcedResolutionMove &&
+    appState.forcedResolutionMove.i !== undefined
+  ) {
+    clearRecommendations();
 
-  const move = appState.forcedResolutionMove;
+    const move = appState.forcedResolutionMove;
 
-  if (grid[move.i] === null) {
-    DOM.playBoard[move.i].classList.add("recommended-safe");
+    if (grid[move.i] === null) {
+      DOM.playBoard[move.i].classList.add("recommended-safe");
+    }
+
+    return;
   }
 
-  return;
-}
+  if (
+    appState.finalDecisionMove &&
+    appState.finalDecisionMove.i !== undefined
+  ) {
+    clearRecommendations();
 
-if (appState.safeOverride && appState.topMoves?.length) {
+    const move = appState.finalDecisionMove;
+
+    if (grid[move.i] === null) {
+      DOM.playBoard[move.i].classList.add("recommended-safe");
+    }
+
+    return;
+  }
+
+  if (appState.safeOverride && appState.topMoves?.length) {
     clearRecommendations();
 
     const move = appState.topMoves[0];
@@ -8070,45 +8329,50 @@ function renderDangerRecommendationHighlight() {
 
   const context = getInfoContext();
 
-const move =
-  appState.noEquivalencePlan?.[0] ||
-  (
-    context.missEndsGame
-      ? null
-      : (
-          appState.resolutionOpportunityMove ||
-          appState.uncertaintyMove
-        )
-  );
+  const moves = [];
 
-if (!move || move.i === undefined) return;
-if (grid[move.i] !== null) return;
+  if (appState.noEquivalencePlan?.[0]) {
+    moves.push(appState.noEquivalencePlan[0]);
+  } else if (!context.missEndsGame) {
+    if (appState.resolutionOpportunityMove) {
+      moves.push(appState.resolutionOpportunityMove);
+    }
 
-if (
-  appState.uncertaintyMove &&
-  move.i === appState.uncertaintyMove.i &&
-  !isRareClarifyingTile(move.i)
-) {
-  return;
-}
+    if (appState.uncertaintyMove) {
+      moves.push(appState.uncertaintyMove);
+    }
+  }
 
-if (
-  appState.uncertaintyMove &&
-  move.i === appState.uncertaintyMove.i &&
-  getMatchingRecommendationForUncertaintyMove(move)
-) {
-  return;
-}
+  for (const move of moves) {
+    if (!move || move.i === undefined) continue;
+    if (grid[move.i] !== null) continue;
 
-if (
-  appState.resolutionOpportunityMove &&
-  move.i === appState.resolutionOpportunityMove.i &&
-  getMatchingRecommendationForResolutionOpportunityMove(move)
-) {
-  return;
-}
+    if (
+      appState.uncertaintyMove &&
+      move.i === appState.uncertaintyMove.i &&
+      !isRareClarifyingTile(move.i)
+    ) {
+      continue;
+    }
 
-DOM.playBoard[move.i].classList.add("recommended-danger");
+    if (
+      appState.uncertaintyMove &&
+      move.i === appState.uncertaintyMove.i &&
+      getMatchingRecommendationForUncertaintyMove(move)
+    ) {
+      continue;
+    }
+
+    if (
+      appState.resolutionOpportunityMove &&
+      move.i === appState.resolutionOpportunityMove.i &&
+      getMatchingRecommendationForResolutionOpportunityMove(move)
+    ) {
+      continue;
+    }
+
+    DOM.playBoard[move.i].classList.add("recommended-danger");
+  }
 }
 
 function renderGuaranteedUnknownHits() {
