@@ -46,7 +46,24 @@
   min-height: 100vh;
 }
   h2, h3 { margin: 5px 0; }
-  .topbar { background: #d1d5db; flex-wrap: nowrap; padding: 15px; border-radius: 12px; box-shadow: 0 4px 10px rgba(0,0,0,0.1); margin-bottom: 20px; }
+  
+  .topbar {
+  background: #d1d5db;
+  padding: 15px;
+  margin-bottom: 20px;
+  box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+
+  display: flex;
+  flex-wrap: wrap;
+  gap: 20px;
+  align-items: center;
+  justify-content: space-between;
+
+  width: 100%;
+  box-sizing: border-box;
+  border-radius: 12px;
+}
+
   .reset-container { background: #d1d5db; padding: 15px; border-radius: 12px; box-shadow: 0 4px 10px rgba(0,0,0,0.1); margin-bottom: 20px; }
   .label { font-weight: bold; margin-right: 10px; }
 
@@ -55,6 +72,13 @@
     cursor:pointer;border:2px solid #333;transition: transform 0.1s, box-shadow 0.1s;
   }
   .color-btn:hover { transform: scale(1.1); }
+  
+  .right-column {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  flex: 1;
+}
   
   .color-btn.selected {
   transform: scale(1.15);
@@ -243,6 +267,14 @@ button {
   margin-bottom: 10px;
 }
 
+.simulation-subtitle {
+  font-size: 12px;
+  color: #666;
+  text-align: left;
+  margin-bottom: 8px;
+  font-style: italic;
+}
+
 .boards {
   display: flex;
   flex-direction: column;
@@ -261,66 +293,49 @@ button {
 }
 
 .heatmap-mode-buttons {
-  display: flex;
+  display: inline-flex;
   justify-content: center;
-  gap: 6px;
-  margin-top: 10px;
-  flex-wrap: wrap;
+  align-items: center;
+  gap: 0;
+
+  margin: 14px auto 0;
+  padding: 4px;
+
+  background: #e5e7eb;
+  border: 1px solid #cbd5e1;
+  border-radius: 12px;
+
+  box-shadow:
+    inset 0 1px 0 rgba(255,255,255,0.65),
+    0 1px 3px rgba(0,0,0,0.08);
+}
+
+.heatmap-mode-buttons button {
+  font-size: 12px;
+  padding: 6px 10px;
+  border-radius: 8px;
+  background: transparent;
+  color: #4b5563;
+  border: 0;
+  box-shadow: none;
+}
+
+.heatmap-mode-buttons button:hover {
+  background: rgba(255,255,255,0.55);
 }
 
 .heatmap-mode-buttons button.active-btn {
-  background: #4CAF50;
+  background: #22c55e;
   color: white;
-}
-
-.heatmap-toggle {
-  font-size: 12px;
-  padding: 5px 10px;
-  border-radius: 8px;
-
-  background: #f3f4f6;
-  color: #111827;
-
-  border: 1px solid #9ca3af;
-
   box-shadow:
-    inset 0 1px 0 rgba(255,255,255,0.7),
-    0 2px 4px rgba(0,0,0,0.15);
-
-  cursor: pointer;
-
-  transition:
-    transform 0.08s ease,
-    box-shadow 0.08s ease,
-    background 0.15s ease;
+    0 1px 3px rgba(0,0,0,0.16),
+    inset 0 1px 0 rgba(255,255,255,0.28);
 }
 
-.heatmap-toggle:hover {
-  background: #e5e7eb;
-}
-
-.heatmap-toggle:active {
-  transform: translateY(1px);
-
-  box-shadow:
-    inset 0 2px 4px rgba(0,0,0,0.2);
-}
-
-.heatmap-toggle.active-btn {
-  background: #2563eb;
-  color: white;
-
-  border-color: #1e3a8a;
-
-  box-shadow:
-    inset 0 1px 2px rgba(255,255,255,0.3),
-    0 2px 6px rgba(37,99,235,0.4);
-}
-
-.heatmap-toggle.disabled {
-  opacity: 0.4;
+.heatmap-mode-buttons button.disabled,
+.heatmap-mode-buttons button:disabled {
+  opacity: 0.45;
   cursor: default;
-  box-shadow: none;
 }
 
 .heatmap-subtitle {
@@ -334,6 +349,52 @@ button {
   color: #dc2626; 
   font-weight: 600;
   opacity: 1;
+}
+
+#rareTargetToggleBtn {
+  padding: 8px 14px;
+  cursor: pointer;
+
+  background: #e5e7eb;
+  color: #4b5563;
+
+  border: 1px solid #cbd5e1;
+  border-radius: 10px;
+
+  font-size: 12px;
+  font-weight: 500;
+
+  box-shadow:
+    inset 0 1px 0 rgba(255,255,255,0.65),
+    0 1px 3px rgba(0,0,0,0.08);
+
+  transition:
+    background 0.15s ease,
+    box-shadow 0.15s ease,
+    transform 0.05s ease;
+}
+
+#rareTargetToggleBtn:hover {
+  background: #dbe3ea;
+
+  box-shadow:
+    inset 0 1px 0 rgba(255,255,255,0.75),
+    0 2px 5px rgba(0,0,0,0.12);
+}
+
+#rareTargetToggleBtn:active {
+  transform: translateY(1px);
+
+  box-shadow:
+    inset 0 2px 4px rgba(0,0,0,0.12);
+}
+
+#rareTargetToggleBtn.active-btn {
+  background: #4CAF50;
+  color: white;
+  border-color: #4CAF50;
+
+  box-shadow: none;
 }
 
 .last-updated-badge {
@@ -360,7 +421,15 @@ button {
 .layout {
   display: flex;
   gap: 20px;
-  align-items: stretch;
+  align-items: flex-start;
+}
+
+.right-column {
+  align-self: stretch;
+}
+
+#infoBox {
+  flex: 1;
 }
 
 .left-column {
@@ -452,7 +521,7 @@ button {
     0 4px 10px rgba(0,0,0,0.1);
 }
 
-.topbar, #infoBox {
+#infoBox {
   width: 100%;
   box-sizing: border-box;
 }
@@ -674,23 +743,13 @@ button {
   margin-bottom: 6px;
 }
 
-.info-purple { border-color: #6d28d9; }
-.info-purple .info-card-title { color: #a855f7; }
-
-.info-gold { border-color: #b45309; }
-.info-gold .info-card-title {
-  color: #92400e;
-}
-
-.info-green { border-color: #065f46; }
-.info-green .info-card-title { color: #22c55e; }
-
-.info-blue { border-color: #1e3a8a; }
-.info-blue .info-card-title { color: #60a5fa; }
-
 .info-green {
   border-color: #065f46;
   background: rgba(34,197,94,0.08);
+}
+
+.info-green .info-card-title {
+  color: #22c55e;
 }
 
 .info-purple {
@@ -698,10 +757,26 @@ button {
   background: rgba(168,85,247,0.08);
 }
 
+.info-purple .info-card-title {
+  color: #a855f7;
+}
+
 .info-gold {
   border-color: #b45309;
   background: rgba(251,191,36,0.12);
-  color: #111827; 
+  color: #111827;
+}
+
+.info-gold .info-card-title {
+  color: #92400e;
+}
+
+.info-blue {
+  border-color: #1e3a8a;
+}
+
+.info-blue .info-card-title {
+  color: #60a5fa;
 }
 
 .info-progress {
@@ -711,15 +786,6 @@ button {
 
 .info-progress .info-card-title {
   color: #06b6d4;
-}
-
-.topbar {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 20px;
-  align-items: center;
-  justify-content: space-between;
-  width: 100%;
 }
 
 #topInfoBox.hidden,
@@ -822,6 +888,60 @@ button {
   margin-bottom: 0;
 }
 
+.utility-controls-row {
+  flex-basis: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.utility-group-left,
+.utility-group-right {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.utility-controls-row .label {
+  font-size: 11px;
+  opacity: 0.65;
+  letter-spacing: 0.5px;
+}
+
+.utility-controls-row button {
+  font-size: 11px;
+  padding: 3px 7px;
+}
+
+#safeRiskBandSelect {
+  font-size: 11px;
+  padding: 3px 8px;
+  border: 1px solid #9ca3af;
+  border-radius: 6px;
+  background: #f9fafb;
+  color: #111827;
+  cursor: pointer;
+}
+
+.safety-checkbox {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 11px;
+  opacity: 0.8;
+  cursor: pointer;
+}
+
+.safety-checkbox input {
+  margin: 0;
+}
+
+#simulationBoardContainer {
+  flex: 1;
+  width: 100%;
+  box-sizing: border-box;
+}
+
 #undoBtn {
   background: #374151;
   color: #f9fafb;
@@ -855,7 +975,6 @@ button {
   background: #dc2626;
 }
 
-.topbar,
 .board-container,
 #infoBox {
   border-radius: 12px;
@@ -1164,35 +1283,71 @@ button {
 <div class="controls-row">
   <div class="topbar">
 
-    <div class="section">
-      <span class="label">Colors:</span>
-      <button onclick="setRare(2,this)">6</button>
-      <button onclick="setRare(3,this)">7</button>
-      <button onclick="setRare(4,this)">8</button>
-      <button onclick="setRare(5,this)">9</button>
-    </div>
-	
-	<div class="section">
-  <button id="colorblindToggleBtn" onclick="toggleColorblindMode(this)">
-    Colorblind
-  </button>
-  
-   <button id="staggerBoardToggleBtn" onclick="toggleStaggerBoardMode(this)">
-    Broken Grid
-  </button>
-  
+<div class="section">
+  <span class="label">Colors:</span>
+  <button onclick="setRare(2,this)">6</button>
+  <button onclick="setRare(3,this)">7</button>
+  <button onclick="setRare(4,this)">8</button>
+  <button onclick="setRare(5,this)">9</button>
 </div>
 
-    <div class="section">
-      <span class="label">Mode:</span>
-<button id="modeSafe" onclick="setMode('safe', this)">
-  Safe
+<div class="section">
+  <span class="label">Mode:</span>
+  <button id="modeSafe" onclick="setMode('safe', this)">
+    Safe
+  </button>
+
+  <button id="modeAggressive" onclick="setMode('aggressive', this)">
+    Aggressive
+  </button>
+
+  <button id="simulationToggleBtn" onclick="toggleSimulationMode(this)">
+    Simulation
+  </button>
+</div>
+
+<div class="section utility-controls-row">
+
+  <div class="utility-group-left">
+    <span class="label">Accessibility:</span>
+
+    <button id="colorblindToggleBtn" onclick="toggleColorblindMode(this)">
+      Colorblind
+    </button>
+    
+    <button id="staggerBoardToggleBtn" onclick="toggleStaggerBoardMode(this)">
+      Broken Grid
+    </button>
+  </div>
+
+  <div class="utility-group-right">
+    <span class="label">Safety Settings:</span>
+
+<select
+  id="safeRiskBandSelect"
+  onchange="setSafeRiskBand(Number(this.value))"
+>
+  <option value="1">Risk Band: 1%</option>
+  <option value="3">Risk Band: 3%</option>
+  <option value="5" selected>Risk Band: 5%</option>
+</select>
+
+<button
+  id="safeAvoidAdjacentKnownToggle"
+  onclick="toggleSafeAvoidAdjacentKnown(this)"
+>
+  Avoid adjacency
 </button>
 
-<button id="modeAggressive" onclick="setMode('aggressive', this)">
-  Aggressive
+<button
+  id="safeAggressiveAvoidHighProbToggle"
+  onclick="toggleSafeAggressiveAvoidHighProb(this)"
+>
+  Avoid &gt;90% Prob
 </button>
-    </div>
+  </div>
+
+</div>
 
   </div>
   
@@ -1242,7 +1397,6 @@ button {
   </button>
 </div>
 </div>
-<br>
   <div class="board-container">
 <div class="heatmap-header">
   <h3 id="heatmapTitle">Probability Heatmap</h3>
@@ -1301,7 +1455,24 @@ button {
     </div>
 
 </div> 
-<div id="infoBox"></div>
+
+<div class="right-column">
+  <div
+    id="simulationBoardContainer"
+    class="board-container"
+    style="display:none;"
+  >
+    <h3>Simulated Board</h3>
+    <div class="board-wrapper">
+      <div id="simulationBoard" class="board"></div>
+    </div>
+	<div class="simulation-subtitle">
+  Randomly generated board unrelated to your OT.<br> Used for testing the solver.
+</div>
+  </div>
+
+  <div id="infoBox"></div>
+</div>
 
 </div> 
 
@@ -1386,6 +1557,8 @@ const ID_TO_COLOR = Object.fromEntries(
 const DOM = {
   playBoard: null,
   heatmap: null,
+  simulationBoard: null,
+  simulationBoardContainer: null,
   heatmapTitle: null,
   heatmapSubtitle: null,
   heatmapToggleBtn: null,
@@ -1528,6 +1701,7 @@ let gridStatsCache = null;
 let gridMask = 0;
 let outcomeBucketsCache = null;
 let tileShipSizesCache = null;
+let mcmcUndiscoveredShipStatsCache = null;
 let unfoundBonusCache = null;
 let tileEVStatsCache = null;
 let hitCountsCache = null;
@@ -1548,6 +1722,13 @@ let lastAutoFillHitCount = 0;
 let activeColorPickerTile = null;
 
 let showGambaHighlight = false;
+let safeRiskBand = 0.05;
+let safeAvoidAdjacentKnown = false;
+let safeAggressiveAvoidHighProb = false;
+
+let simulationMode = false;
+let simulationBoard = null;
+let simulationRevealed = Array(25).fill(false);
 
 const DOM_LISTS = {
   colorButtons: null,
@@ -1556,6 +1737,7 @@ const DOM_LISTS = {
 };
 
 let rareRulesCache = null;
+let tilePickerLegalityCache = new Map();
 
 // ===============================
 // T.03 ACTIONS
@@ -1664,202 +1846,6 @@ function clearTilePickerPreview() {
   clearHeatmapPreview();
 }
 
-function openTileColorPicker(i) {
-  closeTileColorPicker();
-
-  const cell = DOM.playBoard[i];
-  if (!cell) return;
-
-  activeColorPickerTile = i;
-  cell.classList.add('picker-open');
-
-  if (grid[i] !== null) {
-    cell.style.setProperty(
-      '--picker-outline-color',
-      getPickerOutlineColor(grid[i])
-    );
-  } else {
-    cell.style.removeProperty('--picker-outline-color');
-  }
-
-  const picker = document.createElement('div');
-  picker.className = 'tile-color-picker';
-
-  const svg = createTileColorRing(i);
-  picker.appendChild(svg);
-
-  cell.appendChild(picker);
-}
-
-function createTileColorRing(tileIndex) {
-  const svgNS = 'http://www.w3.org/2000/svg';
-
-const svg = document.createElementNS(svgNS, 'svg');
-svg.classList.add('tile-color-ring');
-svg.setAttribute('viewBox', '0 0 92 92');
-
-  const defs = document.createElementNS(svgNS, 'defs');
-
-  const rainbowGradient = document.createElementNS(svgNS, 'linearGradient');
-  rainbowGradient.setAttribute('id', 'tilePickerRainbowGradient');
-  rainbowGradient.setAttribute('x1', '0%');
-  rainbowGradient.setAttribute('y1', '0%');
-  rainbowGradient.setAttribute('x2', '100%');
-  rainbowGradient.setAttribute('y2', '100%');
-
-  [
-    ['0%', 'rgb(239,68,68)'],
-    ['25%', 'rgb(251,191,36)'],
-    ['50%', 'rgb(34,197,94)'],
-    ['75%', 'rgb(59,130,246)'],
-    ['100%', 'rgb(168,85,247)']
-  ].forEach(([offset, color]) => {
-    const stop = document.createElementNS(svgNS, 'stop');
-    stop.setAttribute('offset', offset);
-    stop.setAttribute('stop-color', color);
-    rainbowGradient.appendChild(stop);
-  });
-
-  defs.appendChild(rainbowGradient);
-  svg.appendChild(defs);
-
-  const counts = getColorCountsForTileEdit(tileIndex);
-  const usedRare = getUsedRareFromCounts(counts);
-  
-  const placementRuleCache = {};
-
-const centerX = 46;
-const centerY = 46;
-const outerRadius = 60;
-const innerRadius = 30;
-  const sliceAngle = 360 / TILE_PICKER_COLORS.length;
-  const startOffset = -90 - (sliceAngle / 2);
-
-  TILE_PICKER_COLORS.forEach((color, index) => {
-    const startAngle = startOffset + index * sliceAngle;
-    const endAngle = startAngle + sliceAngle;
-
-    const sector = document.createElementNS(svgNS, 'path');
-
-    sector.classList.add('tile-color-sector');
-    sector.dataset.color = color;
-
-    sector.setAttribute(
-      'd',
-      getDonutSectorPath(
-        centerX,
-        centerY,
-        innerRadius,
-        outerRadius,
-        startAngle,
-        endAngle
-      )
-    );
-
-    sector.setAttribute(
-      'fill',
-      getRingSectorFill(color)
-    );
-
-const disabled = isTilePickerColorDisabled(
-  color,
-  tileIndex,
-  counts,
-  usedRare,
-  placementRuleCache
-);
-
-    sector.classList.toggle('disabled', disabled);
-
-    sector.addEventListener('click', event => {
-      event.stopPropagation();
-      if (disabled) return;
-
-      placeColorAs(tileIndex, color);
-      closeTileColorPicker();
-    });
-
-sector.addEventListener('mouseenter', event => {
-  showColorTooltip(getColorTooltipLabel(color), event);
-
-  if (!disabled) {
-    previewTilePickerColor(tileIndex, color);
-  }
-});
-
-sector.addEventListener('mousemove', moveColorTooltip);
-
-sector.addEventListener('mouseleave', () => {
-  hideColorTooltip();
-  clearTilePickerPreview();
-});
-
-    svg.appendChild(sector);
-  });
-
-  const hole = document.createElementNS(svgNS, 'circle');
-  hole.classList.add('tile-color-ring-hole');
-  hole.setAttribute('cx', centerX);
-  hole.setAttribute('cy', centerY);
-  hole.setAttribute('r', innerRadius - 1);
-
-  svg.appendChild(hole);
-
-  return svg;
-}
-
-function getDonutSectorPath(cx, cy, innerR, outerR, startAngle, endAngle) {
-  const outerStart = polarToCartesian(cx, cy, outerR, startAngle);
-  const outerEnd = polarToCartesian(cx, cy, outerR, endAngle);
-  const innerEnd = polarToCartesian(cx, cy, innerR, endAngle);
-  const innerStart = polarToCartesian(cx, cy, innerR, startAngle);
-
-  const largeArcFlag = endAngle - startAngle <= 180 ? 0 : 1;
-
-  return [
-    `M ${outerStart.x} ${outerStart.y}`,
-    `A ${outerR} ${outerR} 0 ${largeArcFlag} 1 ${outerEnd.x} ${outerEnd.y}`,
-    `L ${innerEnd.x} ${innerEnd.y}`,
-    `A ${innerR} ${innerR} 0 ${largeArcFlag} 0 ${innerStart.x} ${innerStart.y}`,
-    'Z'
-  ].join(' ');
-}
-
-function polarToCartesian(cx, cy, radius, angleInDegrees) {
-  const angleInRadians = angleInDegrees * Math.PI / 180;
-
-  return {
-    x: cx + radius * Math.cos(angleInRadians),
-    y: cy + radius * Math.sin(angleInRadians)
-  };
-}
-
-function getRingSectorFill(color) {
-  if (color === 'rainbow') {
-    return 'url(#tilePickerRainbowGradient)';
-  }
-
-  return getPickerColorBackground(color);
-}
-
-function closeTileColorPicker() {
-  if (activeColorPickerTile === null) return;
-
-  const cell = DOM.playBoard[activeColorPickerTile];
-
-  if (cell) {
-    cell.classList.remove('picker-open');
-	
-	cell.style.removeProperty('--picker-outline-color');
-
-    const picker = cell.querySelector('.tile-color-picker');
-    if (picker) picker.remove();
-  }
-
-  activeColorPickerTile = null;
-  hideColorTooltip();
-}
-
 function placeColorAs(i, color) {
   const previewColor = selectedColor;
 
@@ -1904,12 +1890,12 @@ if (grid[tileIndex] === null) {
     placementRuleCache[color] === undefined
   ) {
     placementRuleCache[color] =
-      canTileAcceptColorByPlacementRules(tileIndex, color);
+      canTileAcceptColorByPlacementRulesCached(tileIndex, color);
   }
 
   const canAccept = placementRuleCache
     ? placementRuleCache[color]
-    : canTileAcceptColorByPlacementRules(tileIndex, color);
+    : canTileAcceptColorByPlacementRulesCached(tileIndex, color);
 
   if (!canAccept) {
     return true;
@@ -1955,23 +1941,6 @@ function clearPlacementValidationCachesOnly() {
   clearColorMaskCache();
   gridStatsCache = null;
   rareRulesCache = null;
-}
-
-function getPickerColorBackground(color) {
-  switch(color){
-    case 'miss': return '#3b82f6';
-    case 'teal': return '#4fd1c5';
-    case 'green': return 'green';
-    case 'yellow': return 'yellow';
-    case 'orange': return 'orange';
-    case 'red': return 'red';
-    case 'black': return 'black';
-    case 'white': return 'white';
-    case 'rainbow':
-      return 'linear-gradient(135deg, rgb(239,68,68), rgb(251,191,36), rgb(34,197,94), rgb(59,130,246), rgb(168,85,247))';
-    default:
-      return '#d1d5db';
-  }
 }
 
 function toggleColor(i) {
@@ -2147,6 +2116,16 @@ updateAutoHitsButton();
 targetRareShipsMode = false;
 showGambaHighlight = false;
 
+simulationMode = false;
+simulationBoard = null;
+simulationRevealed = Array(25).fill(false);
+document
+  .getElementById('simulationToggleBtn')
+  ?.classList.remove('active-btn');
+
+updateSimulationUI();
+renderSimulationBoard();
+
 }
 
 // ===============================
@@ -2274,6 +2253,7 @@ function createHistorySnapshot() {
 
 function refreshAfterBoardChange() {
   render();
+  renderSimulationBoard();
   updateColorAvailability();
   runSimulation();
   renderUI();
@@ -2296,28 +2276,6 @@ function clearTransientMoveState() {
   appState.forcedResolutionMove = null;
   appState.finalDecisionMove = null;
   appState.resolutionOpportunityMove = null;
-}
-
-function hasValidPlacementsForAllShips() {
-  for (const ship of getShipList()) {
-    if (getPlacementsCached(ship).length === 0) {
-      return false;
-    }
-  }
-
-  return true;
-}
-
-function shouldHideBestStrategicMove(ctx = getInfoContext()) {
-  return (
-    !!appState.noEquivalencePlan?.length ||
-    !!appState.finalDecisionMove ||
-    !!appState.resolutionOpportunityMove ||
-    (
-      !ctx?.missEndsGame &&
-      !!appState.uncertaintyMove
-    )
-  );
 }
 
 function deepClone(obj) {
@@ -2427,17 +2385,51 @@ function clearPlacementsCache() {
   tileShipSizesCache = null;
   unfoundBonusCache = null;
 tileEVStatsCache = null;
+mcmcUndiscoveredShipStatsCache = null;
 hitCountsCache = null;
 rareUnfoundCountsCache = null;
 hitMasksCache = null;
 equivalenceGroupsCache = null;
 precalcContextCache = null;
 rareRulesCache = null;
+tilePickerLegalityCache.clear();
 }
 
 // ===============================
 // T.05 VALIDATION
 // ===============================
+
+function getTilePickerLegalityCacheKey(tileIndex, color) {
+  return [
+    rareCount,
+    tileIndex,
+    color,
+    grid.map(c => c || '-').join(',')
+  ].join('|');
+}
+
+function canTileAcceptColorByPlacementRulesCached(tileIndex, color) {
+  const key = getTilePickerLegalityCacheKey(tileIndex, color);
+
+  if (tilePickerLegalityCache.has(key)) {
+    return tilePickerLegalityCache.get(key);
+  }
+
+  const result = canTileAcceptColorByPlacementRules(tileIndex, color);
+  tilePickerLegalityCache.set(key, result);
+
+  return result;
+}
+
+function hasValidPlacementsForAllShips() {
+  for (const ship of getShipList()) {
+    if (getPlacementsCached(ship).length === 0) {
+      return false;
+    }
+  }
+
+  return true;
+}
 
 function isStateValid(){
   const { colorCounts, colorMasks } = getGridStats();
@@ -3139,6 +3131,160 @@ function getUsedRare(){
 // T.08 SIMULATION 
 // ===============================
 
+function startSimulationMode(btn = null) {
+  if (rareCount === null) {
+    showError("Choose number of colors first.");
+    return;
+  }
+
+  grid = Array(25).fill(null);
+  selectedColor = null;
+  history = [];
+  moves = [];
+  redoStack = [];
+  currentMode = MODE.NORMAL;
+  appState = createEmptyAppState();
+
+  clearPlacementsCache();
+
+simulationBoard = generateRandomSimulationBoard();
+simulationRevealed = Array(25).fill(false);
+
+if (!simulationBoard) {
+  showError("Could not generate a valid simulation board.");
+  return;
+}
+
+  simulationMode = true;
+  btn?.classList.add('active-btn');
+
+  ensureConfigLocked();
+  clearPlacementsCache();
+
+  render();
+  renderSimulationBoard();
+  updateSimulationUI();
+  refreshAfterAnalysisStateChange();
+  updateBoardLock();
+}
+
+function stopSimulationMode(btn = null) {
+simulationMode = false;
+simulationBoard = null;
+simulationRevealed = Array(25).fill(false);
+
+  btn?.classList.remove('active-btn');
+
+  updateSimulationUI();
+  renderSimulationBoard();
+}
+
+function generateRandomSimulationBoard() {
+  for (let attempt = 0; attempt < 200; attempt++) {
+    const ships = getRandomConcreteSimulationShips();
+    if (!ships) continue;
+
+    const placementsMap = buildRandomizedPlacementsMap(ships);
+    if (!placementsMap) continue;
+
+    const board = Array(25).fill(null);
+
+    if (!backtrackPlace(ships, placementsMap, 0, board)) {
+      continue;
+    }
+
+    if (isValidCompleteSimulationBoard(board)) {
+      return board;
+    }
+  }
+
+  return null;
+}
+
+function buildRandomizedPlacementsMap(ships) {
+  const placementsMap = buildPlacementsMap(ships);
+
+  if (!placementsMap) return null;
+
+  for (const ship of ships) {
+    placementsMap[ship] = shuffle([...placementsMap[ship]]);
+  }
+
+  return placementsMap;
+}
+
+function getRandomConcreteSimulationShips() {
+  const rareSets = getPossibleRareSetsForMode();
+
+  if (!rareSets.length) return null;
+
+  const rareSet = shuffle(
+    rareSets[Math.floor(Math.random() * rareSets.length)]
+  );
+
+  return shuffle([
+    'teal',
+    'green',
+    'yellow',
+    ...rareSet
+  ]);
+}
+
+function isValidCompleteSimulationBoard(board) {
+  const previousGrid = grid;
+
+  grid = Array(25).fill(null);
+  clearPlacementValidationCachesOnly();
+
+  try {
+    return isBoardValid(board, true);
+  } finally {
+    grid = previousGrid;
+    clearPlacementValidationCachesOnly();
+  }
+}
+
+function revealSimulationTile(i) {
+  if (!simulationMode) return;
+  if (!simulationBoard) return;
+
+  simulationRevealed[i] = true;
+
+  renderSimulationBoard();
+}
+
+function updateSimulationUI() {
+  if (!DOM.simulationBoardContainer) return;
+
+  DOM.simulationBoardContainer.style.display =
+    simulationMode ? '' : 'none';
+}
+
+function renderSimulationBoard() {
+  if (!DOM.simulationBoard) return;
+
+  for (let i = 0; i < 25; i++) {
+    const cell = DOM.simulationBoard[i];
+    if (!cell) continue;
+
+    cell.className = 'cell';
+    cell.textContent = '';
+
+    if (!simulationMode || !simulationBoard) {
+      cell.style.background = '';
+      continue;
+    }
+
+    if (simulationRevealed[i]) {
+      const color = simulationBoard[i] || 'miss';
+      cell.style.background = getPickerColorBackground(color);
+      cell.classList.add('placed-tile');
+    } else {
+      cell.style.background = '#d1d5db';
+    }
+  }
+}
+
 function runSimulation(){
 
   if (shouldSkipSimulation()) return;
@@ -3174,8 +3320,14 @@ function shouldSkipSimulation() {
   return isLoadingHash || isGameOverMode;
 }
 
-function finalizeSimulation({ counts, valid, attempts }) {
+function finalizeSimulation({ counts, valid, attempts, mcmcUndiscoveredShipStats }) {
   const probs = counts.map(c => (valid ? c / valid : 0));
+
+mcmcUndiscoveredShipStatsCache =
+  finalizeMCMCUndiscoveredShipStats(
+    mcmcUndiscoveredShipStats,
+    valid
+  );
 
 appState = {
   ...createEmptyAppState(),
@@ -3346,9 +3498,10 @@ return (
 function runMonteCarlo(ctx) {
   appState.forcedTiles = null;
 
-  const counts = Array(25).fill(0);
-  let valid = 0;
-  let attempts = 0;
+const counts = Array(25).fill(0);
+const mcmcUndiscoveredShipStats = createEmptyMCMCUndiscoveredShipStats();
+let valid = 0;
+let attempts = 0;
   const seen = new Set();
 
   const NUM_CHAINS =
@@ -3372,10 +3525,21 @@ function runMonteCarlo(ctx) {
 
     runMCMCLoops(chains, ships, placementsMap);
 
-    valid += collectSamples(chains, counts, seen, valid);
+    valid += collectSamples(
+  chains,
+  counts,
+  seen,
+  valid,
+  mcmcUndiscoveredShipStats
+);
   }
 
-  return { counts, valid, attempts };
+  return {
+  counts,
+  valid,
+  attempts,
+  mcmcUndiscoveredShipStats
+};
 }
 
 function backtrackPlace(
@@ -3581,7 +3745,7 @@ function runMCMCLoops(chains, ships, placementsMap) {
   }
 }
 
-function collectSamples(chains, counts, seen, validSoFar) {
+function collectSamples(chains, counts, seen, validSoFar, mcmcUndiscoveredShipStats = null) {
   let newValid = 0;
 
   for (let chain of chains) {
@@ -3600,11 +3764,56 @@ function collectSamples(chains, counts, seen, validSoFar) {
     newValid++;
 
     for (let i = 0; i < 25; i++) {
-      if (board[i]) counts[i]++;
-    }
+  const color = board[i];
+
+  if (!color) continue;
+
+  counts[i]++;
+
+  if (mcmcUndiscoveredShipStats) {
+    addMCMCUndiscoveredShipSample(
+      mcmcUndiscoveredShipStats,
+      i,
+      color
+    );
+  }
+}
   }
 
   return newValid;
+}
+
+function createEmptyMCMCUndiscoveredShipStats() {
+  return Array.from({ length: 25 }, () => ({
+    size4: 0,
+    size3: 0,
+    size2: 0
+  }));
+}
+
+function addMCMCUndiscoveredShipSample(stats, tile, color) {
+  const tier = getUndiscoveredShipTierForColor(
+    color,
+    getGridStats().colorCounts
+  );
+
+  if (tier === 4) {
+    stats[tile].size4++;
+  } else if (tier === 3) {
+    stats[tile].size3++;
+  } else if (tier === 2) {
+    stats[tile].size2++;
+  }
+}
+
+function finalizeMCMCUndiscoveredShipStats(stats, valid) {
+  if (!stats || !valid) return null;
+
+  return stats.map(tileStats => ({
+    size4: tileStats.size4 / valid,
+    size3: tileStats.size3 / valid,
+    size2: tileStats.size2 / valid
+  }));
 }
 
 // ===============================
@@ -3835,13 +4044,17 @@ if (
       : null;
 }
 
+/* SEE YA UNAVOIDABLE GUESS MOVE
 if (
+  !appState.resolutionOpportunityMove &&
   allBoards.length <= PRECALC_BOARD_LIMIT &&
   effectiveUnknownTiles.length <= PRECALC_UNKNOWN_TILE_LIMIT
 ) {
   appState.uncertaintyMove =
     getBestUncertaintyRemovalMove(allBoards, probs);
 }
+
+GET FUKT */ 
 
 const analysis = analyzeEquivalence(allBoards, probs);
 analysis.collapseMove = getBestTwoStepCollapseMove(allBoards, probs);
@@ -6216,6 +6429,19 @@ function makeCollapseScoreGetter(allBoards, probs) {
 // T.11 MOVE STRATEGY
 // ===============================
 
+function shouldHideBestStrategicMove(ctx = getInfoContext()) {
+  return (
+    !!appState.noEquivalencePlan?.length ||
+    !!appState.finalDecisionMove ||
+    !!appState.resolutionOpportunityMove ||
+    (
+      !ctx?.missEndsGame &&
+      !!appState.uncertaintyMove
+    )
+  );
+}
+
+
 function getBestResolutionOpportunityMove(allBoards, probs) {
   if (!allBoards || allBoards.length <= 2) return null;
   if (allBoards.length > 1000) return null;
@@ -6489,7 +6715,17 @@ result = applyTiebreakLayer(
 
 if (result.winner) return result.winner;
 
-return finishWithLowestIndex(result.pool, 3);
+result = applyTiebreakLayer(
+  result.pool,
+  c => c.worstUnresolvedTiles,
+  false,
+  "Fewest unresolved tiles in worst outcome",
+  3
+);
+
+if (result.winner) return result.winner;
+
+return finishWithLowestIndex(result.pool, 4);
 }
 
 function scoreFinalDecisionSetupTile(tile, boardSet, boardCount, ctx, probs) {
@@ -6498,6 +6734,9 @@ function scoreFinalDecisionSetupTile(tile, boardSet, boardCount, ctx, probs) {
   let expectedRemaining = 0;
   let worstRemaining = 0;
   let outcomeCount = 0;
+  
+  const nextKnownMask = getCurrentKnownMask() | CELL_MASKS[tile];
+  let worstUnresolvedTiles = 0;
 
   for (const outcome in outcomeSets) {
     const outcomeBoardSet = boardSet & outcomeSets[outcome];
@@ -6513,6 +6752,14 @@ function scoreFinalDecisionSetupTile(tile, boardSet, boardCount, ctx, probs) {
     expectedRemaining += pOutcome * count;
     worstRemaining = Math.max(worstRemaining, count);
     outcomeCount++;
+	worstUnresolvedTiles = Math.max(
+    worstUnresolvedTiles,
+    countUnresolvedTilesInBoardSet(
+    outcomeBoardSet,
+    nextKnownMask,
+    ctx
+  )
+);
   }
 
   if (outcomeCount === 0) return null;
@@ -6522,9 +6769,10 @@ function scoreFinalDecisionSetupTile(tile, boardSet, boardCount, ctx, probs) {
     p: probs[tile],
     expectedRemaining,
     worstRemaining,
-    riskAdjustedRemaining:
-      expectedRemaining + worstRemaining * 0.35,
-    type: "safe"
+    worstUnresolvedTiles,
+	riskAdjustedRemaining:
+    expectedRemaining + worstRemaining * 0.35,
+	type: "safe"
   };
 }
 
@@ -6642,6 +6890,29 @@ function doesTileForceSolvedState(tile, boardSet, knownMask, ctx) {
   return true;
 }
 
+function countUnresolvedTilesInBoardSet(boardSet, knownMask, ctx) {
+  const total = getBoardSetCount(boardSet, ctx);
+  const unknownMask = FULL_BOARD_MASK & ~knownMask;
+
+  let unresolved = 0;
+
+  for (let mask = unknownMask; mask; mask &= mask - 1) {
+    const bit = mask & -mask;
+    const tile = BIT_INDEX[bit];
+
+    const hitCount = getBoardSetCount(
+      boardSet & ctx.tileHitBoardSets[tile],
+      ctx
+    );
+
+    if (hitCount !== 0 && hitCount !== total) {
+      unresolved++;
+    }
+  }
+
+  return unresolved;
+}
+
 function isSolvedBoardSet(boardSet, knownMask, ctx) {
   const total = getBoardSetCount(boardSet, ctx);
   if (total <= 1) return true;
@@ -6731,9 +7002,14 @@ function highlightStartingCorners(){
 
   const { huntMode } = getGameContext();
 
-  const openingTiles = huntMode
-    ? [7, 11, 13, 17]              
-    : [0, 4, 20, 24];  
+const isManualSafeMode = forcedStartMode === "safe";
+const use89ColorOpening = rareCount >= 4 && !isManualSafeMode;
+
+const openingTiles = use89ColorOpening
+  ? [8, 12, 16]
+  : huntMode
+    ? [7, 11, 13, 17]
+    : [0, 4, 20, 24];
 
   openingTiles.forEach(i => {
     if(!grid[i]) { 
@@ -7467,11 +7743,9 @@ function findGuaranteedMove(candidates, huntMode) {
     return guaranteedMiss;
   }
 
-  if (shouldForceHeuristics()) {
-    return null;
-  }
+  const { missEndsGame } = getInfoContext();
 
-  if(isEarlyGame()){
+  if (!missEndsGame) {
     return null;
   }
 
@@ -7500,10 +7774,86 @@ function getCandidateReduction(c) {
   return 2 * c.p * (1 - c.p);
 }
 
+function shouldApplySafeAdjacentAvoidance() {
+  if (!safeAvoidAdjacentKnown) return false;
+
+  const context = getInfoContext();
+
+  const { huntMode } = getGameContext();
+
+return (
+  !huntMode ||
+  !context?.missEndsGame
+);
+}
+
+function couldBelongToKnownShip(index) {
+  for (const color of Object.keys(SHIPS)) {
+
+    if (color === 'red' || color === 'rainbow') {
+      continue;
+    }
+
+    const knownCells = [];
+
+    for (let i = 0; i < 25; i++) {
+      if (grid[i] === color) {
+        knownCells.push(i);
+      }
+    }
+
+    if (knownCells.length === 0) continue;
+
+    const possiblePlacements = getPlacementsCached(color);
+
+    const couldBeThisShip =
+  getTileColorProbability(index, color) > 0 &&
+  possiblePlacements.some(placement =>
+    placement.cells.includes(index) &&
+    knownCells.every(i => placement.cells.includes(i))
+  );
+
+    if (couldBeThisShip) {
+      return true;
+    }
+  }
+
+  return false;
+}
+
+function shouldApplyAggressiveHighProbAvoidance(huntMode) {
+  if (!safeAggressiveAvoidHighProb) return false;
+  if (!huntMode) return false;
+
+  const context = getInfoContext();
+
+  return !context?.missEndsGame;
+}
+
 function getSafestMove(candidates, huntMode = false) {
   if (!candidates.length) return null;
 
-  const RISK_BAND = 0.05;
+  if (shouldApplySafeAdjacentAvoidance()) {
+    const nonAdjacentCandidates = candidates.filter(candidate =>
+  !couldBelongToKnownShip(candidate.i)
+);
+
+    if (nonAdjacentCandidates.length > 0) {
+      candidates = nonAdjacentCandidates;
+    }
+  }
+  
+  if (shouldApplyAggressiveHighProbAvoidance(huntMode)) {
+  const belowNinetyCandidates = candidates.filter(candidate =>
+    candidate.p <= 0.90
+  );
+
+  if (belowNinetyCandidates.length > 0) {
+    candidates = belowNinetyCandidates;
+  }
+}
+
+  const RISK_BAND = safeRiskBand;
 
   const getPrimaryChance = huntMode
     ? candidate => candidate.p
@@ -7629,7 +7979,7 @@ function getUndiscoveredShipTiebreakStats(tile, allBoards) {
   };
 
   if (!allBoards || !allBoards.length) {
-    return stats;
+    return mcmcUndiscoveredShipStatsCache?.[tile] || stats;
   }
 
   const colorCounts = getGridStats().colorCounts;
@@ -7963,6 +8313,60 @@ function getRecommendationContext() {
 // T.12 UI
 // ===============================
 
+function applyDefaultSafetySettingsForRareCount(n) {
+  const defaultOn = n >= 4; 
+
+  safeAvoidAdjacentKnown = defaultOn;
+  safeAggressiveAvoidHighProb = defaultOn;
+
+  document
+    .getElementById('safeAvoidAdjacentKnownToggle')
+    ?.classList.toggle('active-btn', safeAvoidAdjacentKnown);
+
+  document
+    .getElementById('safeAggressiveAvoidHighProbToggle')
+    ?.classList.toggle('active-btn', safeAggressiveAvoidHighProb);
+}
+
+function updateSafetySettingButtons() {
+  const context = getInfoContext();
+  const { huntMode } = getGameContext();
+
+  const adjacencyBtn = document.getElementById(
+    'safeAvoidAdjacentKnownToggle'
+  );
+
+  const highProbBtn = document.getElementById(
+    'safeAggressiveAvoidHighProbToggle'
+  );
+
+  if (adjacencyBtn) {
+const canUseAdjacencyAvoid =
+  !huntMode ||
+  !context?.missEndsGame;
+
+    adjacencyBtn.disabled = !canUseAdjacencyAvoid;
+
+    if (!canUseAdjacencyAvoid) {
+      safeAvoidAdjacentKnown = false;
+      adjacencyBtn.classList.remove('active-btn');
+    }
+  }
+
+  if (highProbBtn) {
+    const canUseHighProbAvoid =
+      huntMode &&
+      !context?.missEndsGame;
+
+    highProbBtn.disabled = !canUseHighProbAvoid;
+
+    if (!canUseHighProbAvoid) {
+      safeAggressiveAvoidHighProb = false;
+      highProbBtn.classList.remove('active-btn');
+    }
+  }
+}
+
 function getPickerOutlineColor(color) {
   switch(color){
     case 'miss': return '#3b82f6';
@@ -8119,10 +8523,17 @@ function updateTopInfoVisibility(){
 }
 
 function updateModeButtons(){
-  const safeBtn = document.getElementById('modeSafe');
-  const aggressiveBtn = document.getElementById('modeAggressive');
+const safeBtn = document.getElementById('modeSafe');
+const aggressiveBtn = document.getElementById('modeAggressive');
+const simulationBtn = document.getElementById('simulationToggleBtn');
 
-  if(!safeBtn || !aggressiveBtn) return;
+if(!safeBtn || !aggressiveBtn) return;
+
+if (simulationBtn) {
+  simulationBtn.disabled =
+    rareCount === null ||
+    (!simulationMode && hasGameStarted());
+}
 
   safeBtn.classList.remove('active-btn', 'disabled');
   aggressiveBtn.classList.remove('active-btn', 'disabled');
@@ -8140,6 +8551,8 @@ function updateModeButtons(){
   } else {
     safeBtn.classList.add('active-btn');
   }
+  
+  updateSafetySettingButtons();
 }
 
 function render() {
@@ -8984,6 +9397,10 @@ return `
 function buildModeCard(){
   const { huntMode } = getGameContext();
 
+  const safetyText = safeAvoidAdjacentKnown
+    ? "<br>• Avoiding adjacency: red/rainbow exempt"
+    : "";
+
   return makeCard(
     "Mode Info",
     `
@@ -8993,6 +9410,7 @@ function buildModeCard(){
           ? "• Finding <b>non-blues</b>.<br>• Heatmap shows % chance of <b>non-blue</b>."
           : "• Finding <b>blues</b>.<br>• Heatmap shows % chance of <b>blue</b>."
       }
+      ${safetyText}
     `,
     "info-blue"
   );
@@ -9159,10 +9577,11 @@ function appendPreGameMessages(messages, ctx) {
         • 8 and 9 colors default to aggressive mode (finding non-blues.)<br><br>
 		• On 7 colors, consider manually changing to Aggressive mode if your first 3-4 moves are all hits.<br><br>
         • Unclicked guaranteed tiles get stripes in their color (or question mark if color not known). Clicking them before the solver tells you to could lead to worse outcomes. (incl. fill hit button)<br><br>
-        • EV is shown when probabilities are tied. You can use it to decide tie breakers.<br><br>
+		• "Risk band" is how much hit chance can be traded for a potentially better move.<br><br>
+		• "Avoid adjacency" avoids clustering around existing ship information when possible. Auto-disabled when appropriate.<br><br>
+		• "Avoid >90% Prob" delays near-certain hits in favor of gathering additional information. Auto-disabled when appropriate.<br><br>
 		BELOW IS EXACT SOLVING MODE ONLY<br><br>
-		• 2-Step Collapse (later Future Collapse) searches the move tree for board count reduction, and penalizes worst case scenarios. <br><br>
-	    • After clicking a tile, you can hover a color in the selector ring to recalculate the heatmap based on the tile being that color. This will respect the heatmap setting you've selected.<br><br>
+	    • After clicking a tile, you can hover a color in the selector ring to recalculate the selected heatmap based on the tile being that color.<br><br>
 		• Toggling rare ship targeting only works for the current move. This prevents accidentally forgetting to turn it off.
 		`,
         "info-blue info-hint"
@@ -9397,8 +9816,15 @@ function appendOpeningHint(messages, ctx) {
 function getOpeningHintText(){
   const { huntMode } = getGameContext();
 
+  const isManualSafeMode = forcedStartMode === "safe";
+  const use89ColorOpening = rareCount >= 4 && !isManualSafeMode;
+
+  if (use89ColorOpening) {
+    return "8/9-color aggressive opening: play all 3 highlighted tiles.";
+  }
+
   return huntMode
-    ? "Aggressive opening: any tiles adjacent to center are equally optimal starting moves."
+    ? "Aggressive opening: any of the semi-corners are equally optimal starting moves."
     : "Safe opening: all four corners are equally optimal starting moves.";
 }
 
@@ -9539,6 +9965,219 @@ function showError(msg){
 // ===============================
 // T.13 VISUALS
 // ===============================
+
+function openTileColorPicker(i) {
+  closeTileColorPicker();
+
+  const cell = DOM.playBoard[i];
+  if (!cell) return;
+
+  activeColorPickerTile = i;
+  cell.classList.add('picker-open');
+
+  if (grid[i] !== null) {
+    cell.style.setProperty(
+      '--picker-outline-color',
+      getPickerOutlineColor(grid[i])
+    );
+  } else {
+    cell.style.removeProperty('--picker-outline-color');
+  }
+
+  const picker = document.createElement('div');
+  picker.className = 'tile-color-picker';
+
+  const svg = createTileColorRing(i);
+  picker.appendChild(svg);
+
+  cell.appendChild(picker);
+}
+
+function createTileColorRing(tileIndex) {
+  const svgNS = 'http://www.w3.org/2000/svg';
+
+const svg = document.createElementNS(svgNS, 'svg');
+svg.classList.add('tile-color-ring');
+svg.setAttribute('viewBox', '0 0 92 92');
+
+  const defs = document.createElementNS(svgNS, 'defs');
+
+  const rainbowGradient = document.createElementNS(svgNS, 'linearGradient');
+  rainbowGradient.setAttribute('id', 'tilePickerRainbowGradient');
+  rainbowGradient.setAttribute('x1', '0%');
+  rainbowGradient.setAttribute('y1', '0%');
+  rainbowGradient.setAttribute('x2', '100%');
+  rainbowGradient.setAttribute('y2', '100%');
+
+  [
+    ['0%', 'rgb(239,68,68)'],
+    ['25%', 'rgb(251,191,36)'],
+    ['50%', 'rgb(34,197,94)'],
+    ['75%', 'rgb(59,130,246)'],
+    ['100%', 'rgb(168,85,247)']
+  ].forEach(([offset, color]) => {
+    const stop = document.createElementNS(svgNS, 'stop');
+    stop.setAttribute('offset', offset);
+    stop.setAttribute('stop-color', color);
+    rainbowGradient.appendChild(stop);
+  });
+
+  defs.appendChild(rainbowGradient);
+  svg.appendChild(defs);
+
+  const counts = getColorCountsForTileEdit(tileIndex);
+  const usedRare = getUsedRareFromCounts(counts);
+  
+  const placementRuleCache = {};
+
+const centerX = 46;
+const centerY = 46;
+const outerRadius = 60;
+const innerRadius = 30;
+  const sliceAngle = 360 / TILE_PICKER_COLORS.length;
+  const startOffset = -90 - (sliceAngle / 2);
+
+  TILE_PICKER_COLORS.forEach((color, index) => {
+    const startAngle = startOffset + index * sliceAngle;
+    const endAngle = startAngle + sliceAngle;
+
+    const sector = document.createElementNS(svgNS, 'path');
+
+    sector.classList.add('tile-color-sector');
+    sector.dataset.color = color;
+
+    sector.setAttribute(
+      'd',
+      getDonutSectorPath(
+        centerX,
+        centerY,
+        innerRadius,
+        outerRadius,
+        startAngle,
+        endAngle
+      )
+    );
+
+    sector.setAttribute(
+      'fill',
+      getRingSectorFill(color)
+    );
+
+const disabled = isTilePickerColorDisabled(
+  color,
+  tileIndex,
+  counts,
+  usedRare,
+  placementRuleCache
+);
+
+    sector.classList.toggle('disabled', disabled);
+
+    sector.addEventListener('click', event => {
+      event.stopPropagation();
+      if (disabled) return;
+
+      placeColorAs(tileIndex, color);
+      closeTileColorPicker();
+    });
+
+sector.addEventListener('mouseenter', event => {
+  showColorTooltip(getColorTooltipLabel(color), event);
+
+  if (!disabled) {
+    previewTilePickerColor(tileIndex, color);
+  }
+});
+
+sector.addEventListener('mousemove', moveColorTooltip);
+
+sector.addEventListener('mouseleave', () => {
+  hideColorTooltip();
+  clearTilePickerPreview();
+});
+
+    svg.appendChild(sector);
+  });
+
+  const hole = document.createElementNS(svgNS, 'circle');
+  hole.classList.add('tile-color-ring-hole');
+  hole.setAttribute('cx', centerX);
+  hole.setAttribute('cy', centerY);
+  hole.setAttribute('r', innerRadius - 1);
+
+  svg.appendChild(hole);
+
+  return svg;
+}
+
+function getDonutSectorPath(cx, cy, innerR, outerR, startAngle, endAngle) {
+  const outerStart = polarToCartesian(cx, cy, outerR, startAngle);
+  const outerEnd = polarToCartesian(cx, cy, outerR, endAngle);
+  const innerEnd = polarToCartesian(cx, cy, innerR, endAngle);
+  const innerStart = polarToCartesian(cx, cy, innerR, startAngle);
+
+  const largeArcFlag = endAngle - startAngle <= 180 ? 0 : 1;
+
+  return [
+    `M ${outerStart.x} ${outerStart.y}`,
+    `A ${outerR} ${outerR} 0 ${largeArcFlag} 1 ${outerEnd.x} ${outerEnd.y}`,
+    `L ${innerEnd.x} ${innerEnd.y}`,
+    `A ${innerR} ${innerR} 0 ${largeArcFlag} 0 ${innerStart.x} ${innerStart.y}`,
+    'Z'
+  ].join(' ');
+}
+
+function polarToCartesian(cx, cy, radius, angleInDegrees) {
+  const angleInRadians = angleInDegrees * Math.PI / 180;
+
+  return {
+    x: cx + radius * Math.cos(angleInRadians),
+    y: cy + radius * Math.sin(angleInRadians)
+  };
+}
+
+function getRingSectorFill(color) {
+  if (color === 'rainbow') {
+    return 'url(#tilePickerRainbowGradient)';
+  }
+
+  return getPickerColorBackground(color);
+}
+
+function closeTileColorPicker() {
+  if (activeColorPickerTile === null) return;
+
+  const cell = DOM.playBoard[activeColorPickerTile];
+
+  if (cell) {
+    cell.classList.remove('picker-open');
+	
+	cell.style.removeProperty('--picker-outline-color');
+
+    const picker = cell.querySelector('.tile-color-picker');
+    if (picker) picker.remove();
+  }
+
+  activeColorPickerTile = null;
+  hideColorTooltip();
+}
+
+function getPickerColorBackground(color) {
+  switch(color){
+    case 'miss': return '#3b82f6';
+    case 'teal': return '#4fd1c5';
+    case 'green': return 'green';
+    case 'yellow': return 'yellow';
+    case 'orange': return 'orange';
+    case 'red': return 'red';
+    case 'black': return 'black';
+    case 'white': return 'white';
+    case 'rainbow':
+      return 'linear-gradient(135deg, rgb(239,68,68), rgb(251,191,36), rgb(34,197,94), rgb(59,130,246), rgb(168,85,247))';
+    default:
+      return '#d1d5db';
+  }
+}
 
 function getRecommendationTooltipForPlayTile(i) {
   const cell = DOM.playBoard[i];
@@ -11828,6 +12467,39 @@ function getMovesForCurrentGrid(){
 // T.16 EVENT BINDS
 // ===============================
 
+window.toggleSafeAggressiveAvoidHighProb = function(btn) {
+  safeAggressiveAvoidHighProb = !safeAggressiveAvoidHighProb;
+
+  btn.classList.toggle('active-btn', safeAggressiveAvoidHighProb);
+
+  runSimulation();
+  renderUI();
+  updateColorAvailability();
+};
+
+window.toggleSafeAvoidAdjacentKnown = function(btn) {
+  safeAvoidAdjacentKnown = !safeAvoidAdjacentKnown;
+
+  btn.classList.toggle('active-btn', safeAvoidAdjacentKnown);
+
+  if (lastProbs) {
+    finalizeSimulation(lastProbs);
+  } else {
+    runSimulation();
+  }
+
+  renderUI();
+  updateColorAvailability();
+};
+
+window.setSafeRiskBand = function(value) {
+  safeRiskBand = value / 100;
+
+  runSimulation();
+  renderUI();
+  updateColorAvailability();
+};
+
 window.toggleStaggerBoardMode = function(btn){
   staggerBoardMode = (staggerBoardMode + 1) % 3;
 
@@ -11877,6 +12549,14 @@ window.toggleColorblindMode = function(btn){
   colorblindMode = !colorblindMode;
 
   btn.classList.toggle('active-btn', colorblindMode);
+};
+
+window.toggleSimulationMode = function(btn){
+  if (simulationMode) {
+    stopSimulationMode(btn);
+  } else {
+    startSimulationMode(btn);
+  }
 };
 
 window.toggleGambaHighlight = function() {
@@ -11933,6 +12613,7 @@ rareCount = n;
 updateTopInfoVisibility();
 
 forcedStartMode = getDefaultModeForRareCount(n);
+applyDefaultSafetySettingsForRareCount(n);
 
 updateModeButtons();
 
@@ -12025,9 +12706,11 @@ async function updateLastUpdatedBadge() {
 function createBoards(){
   const play=document.getElementById('playBoard');
   const heat=document.getElementById('heatmap');
+  const sim=document.getElementById('simulationBoard');
 
   play.innerHTML='';
   heat.innerHTML='';
+  if (sim) sim.innerHTML='';
 
 for(let i=0;i<25;i++){
   let cell=document.createElement('div');
@@ -12078,6 +12761,18 @@ cell.addEventListener('mouseleave', () => {
   let h=document.createElement('div');
   h.className='cell';
   heat.appendChild(h);
+
+if (sim) {
+  let s = document.createElement('div');
+  s.className = 'cell';
+
+  s.onclick = event => {
+    event.stopPropagation();
+    revealSimulationTile(i);
+  };
+
+  sim.appendChild(s);
+}
 }
 }
 
@@ -12103,6 +12798,8 @@ function cacheDomLists(){
 
 DOM.playBoard = document.getElementById('playBoard').children;
 DOM.heatmap = document.getElementById('heatmap').children;
+DOM.simulationBoard = document.getElementById('simulationBoard').children;
+DOM.simulationBoardContainer = document.getElementById('simulationBoardContainer');
 DOM.heatmapTitle = document.getElementById('heatmapTitle');
 DOM.heatmapSubtitle = document.getElementById('heatmapSubtitle');
 DOM.heatmapToggleBtn = null;
