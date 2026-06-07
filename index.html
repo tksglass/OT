@@ -3180,7 +3180,9 @@ simulationRevealed = Array(25).fill(false);
 }
 
 function generateRandomSimulationBoard() {
-  for (let attempt = 0; attempt < 200; attempt++) {
+  const boards = [];
+
+  for (let attempt = 0; attempt < 500; attempt++) {
     const ships = getRandomConcreteSimulationShips();
     if (!ships) continue;
 
@@ -3194,11 +3196,13 @@ function generateRandomSimulationBoard() {
     }
 
     if (isValidCompleteSimulationBoard(board)) {
-      return board;
+      boards.push([...board]);
     }
   }
 
-  return null;
+  if (!boards.length) return null;
+
+  return boards[Math.floor(Math.random() * boards.length)];
 }
 
 function buildRandomizedPlacementsMap(ships) {
