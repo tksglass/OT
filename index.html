@@ -7792,6 +7792,26 @@ return (
 }
 
 function couldBelongToKnownShip(index) {
+  const ships = getShipList();
+
+if (
+  ships.includes('red') &&
+  getPlacementsCached('red').some(placement =>
+    placement.cells.includes(index)
+  )
+) {
+  return false;
+}
+
+if (
+  ships.includes('rainbow') &&
+  getPlacementsCached('rainbow').some(placement =>
+    placement.cells.includes(index)
+  )
+) {
+  return false;
+}
+
   for (const color of Object.keys(SHIPS)) {
 
     if (color === 'red' || color === 'rainbow') {
