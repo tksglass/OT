@@ -8964,12 +8964,12 @@ if (appendFinalDecisionSetupCard(messages)) {
   return;
 }
 
-  appendStrategyMessages(messages, context);
+appendResolutionOpportunityCard(messages, context);
+appendStrategyMessages(messages, context);
 }
 }
 
 appendRainbowCandidateCard(messages, context);
-appendResolutionOpportunityCard(messages, context);
 appendUncertaintyMoveCard(messages, context);
 appendFallback(messages);
 
