@@ -12527,7 +12527,12 @@ window.toggleSafeAvoidAdjacentKnown = function(btn) {
 window.setSafeRiskBand = function(value) {
   safeRiskBand = value / 100;
 
-  runSimulation();
+  if (appState.probs) {
+    highlightRecommendations(appState.probs);
+  } else {
+    runSimulation();
+  }
+
   renderUI();
   updateColorAvailability();
 };
