@@ -1327,9 +1327,11 @@ button {
   id="safeRiskBandSelect"
   onchange="setSafeRiskBand(Number(this.value))"
 >
-  <option value="1">Risk Band: 1%</option>
-  <option value="3">Risk Band: 3%</option>
-  <option value="5" selected>Risk Band: 5%</option>
+<option value="1">Risk Band: 1%</option>
+<option value="2">Risk Band: 2%</option>
+<option value="3">Risk Band: 3%</option>
+<option value="4">Risk Band: 4%</option>
+<option value="5" selected>Risk Band: 5%</option>
 </select>
 
 <button
@@ -8346,6 +8348,14 @@ function applyDefaultSafetySettingsForRareCount(n) {
 
   safeAvoidAdjacentKnown = defaultOn;
   safeAggressiveAvoidHighProb = defaultOn;
+
+  safeRiskBand = n === 2 ? 0.02 : 0.05;
+
+  const riskBandSelect = document.getElementById('safeRiskBandSelect');
+
+  if (riskBandSelect) {
+    riskBandSelect.value = n === 2 ? "2" : "5";
+  }
 
   document
     .getElementById('safeAvoidAdjacentKnownToggle')
