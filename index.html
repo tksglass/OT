@@ -1798,8 +1798,7 @@ const DEFAULT_TIEBREAKER_CONFIG = {
     "weightedEV"
   ],
 
-    bestSafeAggressive: [
-  "missEndsGameForcedTiles",
+  bestSafeAggressive: [
   "undiscoveredSize4",
   "undiscoveredSize3",
   "undiscoveredSize2",
@@ -1895,15 +1894,7 @@ missEndsGameForcedTiles: {
   label: "More guaranteed tiles on worst outcome branch if miss-ends-game would activate",
   getValue: c => c.missEndsGameForcedTiles || 0,
   higherIsBetter: true,
-  shouldSkip: pool => {
-    const context = getInfoContext();
-
-    return (
-      !safeMissEndsGameTiebreaker ||
-      context.missEndsGame ||
-      !pool.some(c => c.entersMissEndsGame)
-    );
-  }
+  shouldSkip: () => true
 },
 
 undiscoveredSize4: {
@@ -2163,7 +2154,8 @@ const RAW_PLACEMENTS = {
 // T.02 GLOBAL STATE
 // ===============================
 
-let safeMissEndsGameTiebreaker = true;
+let preMegTiebreakersEnabled = true;
+let preMegTiebreakerMode = "worstOutcomeBoards";
 
 let staggerBoardMode = 0;
 
@@ -7324,7 +7316,8 @@ function encodeAdvancedSettings() {
     Math.round(resolutionOpportunityThreshold * 100),
     safeAvoidAdjacentKnown ? 1 : 0,
     safeAggressiveAvoidHighProb ? 1 : 0,
-safeMissEndsGameTiebreaker ? 1 : 0
+preMegTiebreakersEnabled ? 1 : 0,
+preMegTiebreakerMode === "missEndsGameForcedTiles" ? 1 : 0
   ].join(",");
 
 const presetPart = [
@@ -7393,8 +7386,15 @@ function loadAdvancedSettingsCodePayload(code) {
     resolutionOpportunityThreshold = safety[1] / 100;
     safeAvoidAdjacentKnown = safety[2] === 1;
     safeAggressiveAvoidHighProb = safety[3] === 1;
-	safeMissEndsGameTiebreaker =
+	preMegTiebreakersEnabled =
   safety.length < 5 ? true : safety[4] === 1;
+
+preMegTiebreakerMode =
+  safety.length < 6
+    ? "worstOutcomeBoards"
+    : safety[5] === 1
+      ? "missEndsGameForcedTiles"
+      : "worstOutcomeBoards";
 
     const presets = presetPart.split(",").map(Number);
 
@@ -8504,6 +8504,102 @@ function countForcedTilesInBoards(boards, revealedTile) {
   return forcedCount;
 }
 
+function doesOutcomeEnterMissEndsGame(context, outcome) {
+  const nextCounts = getNextPathCounts(
+    context.hits,
+    context.misses,
+    outcome
+  );
+
+  return (
+    nextCounts.hits >= 5 &&
+    nextCounts.misses >= 3
+  );
+}
+
+function getWorstOutcomeBoardCountScore(candidate) {
+  const context = getInfoContext();
+
+  if (
+    context.missEndsGame ||
+    !appState.allBoards ||
+    appState.allBoards.length === 0
+  ) {
+    return Infinity;
+  }
+
+  const buckets = bucketBoardsByOutcome(
+    appState.allBoards,
+    candidate.i
+  );
+
+  let worstBoardCount = 0;
+  let entersMissEndsGame = false;
+
+  for (const outcome in buckets) {
+    const nextCounts = getNextPathCounts(
+      context.hits,
+      context.misses,
+      outcome
+    );
+
+    const nextMissEndsGame =
+      nextCounts.hits >= 5 &&
+      nextCounts.misses >= 3;
+
+    if (!nextMissEndsGame) continue;
+
+    entersMissEndsGame = true;
+
+    worstBoardCount = Math.max(
+      worstBoardCount,
+      buckets[outcome].length
+    );
+  }
+
+  return entersMissEndsGame
+    ? worstBoardCount
+    : Infinity;
+}
+
+function applyPreMegTiebreaker(pool) {
+  const context = getInfoContext();
+
+  if (
+    !preMegTiebreakersEnabled ||
+    context.missEndsGame ||
+    pool.length <= 1 ||
+    !pool.some(c => c.entersMissEndsGame)
+  ) {
+    return {
+      winner: null,
+      pool
+    };
+  }
+
+  if (preMegTiebreakerMode === "missEndsGameForcedTiles") {
+    return applyTiebreakLayer(
+      pool,
+      c => c.entersMissEndsGame
+        ? c.missEndsGameForcedTiles || 0
+        : -Infinity,
+      true,
+      "More guaranteed tiles on worst outcome branch if miss-ends-game would activate",
+      0
+    );
+  }
+
+  return applyTiebreakLayer(
+    pool,
+    c => c.entersMissEndsGame
+      ? c.worstOutcomeBoardCount
+      : Infinity,
+    false,
+    "Lowest board count on worst miss-ends-game branch",
+    0
+  );
+}
+
 function getMissEndsGameForcedTileScore(candidate) {
   const context = getInfoContext();
 
@@ -8714,6 +8810,16 @@ pool.forEach(candidate => {
   candidate.missEndsGameForcedTiles =
     missEndsGameScore.forcedTiles;
 
+  const worstBoardScore =
+  getWorstOutcomeBoardCountScore(candidate);
+
+candidate.entersMissEndsGame =
+  candidate.entersMissEndsGame ||
+  worstBoardScore.entersMissEndsGame;
+
+candidate.worstOutcomeBoardCount =
+  worstBoardScore.boardCount;
+
   candidate.safeBoardReduction =
     getCandidateReduction(candidate);
 
@@ -8721,8 +8827,14 @@ pool.forEach(candidate => {
     getPrimaryChance(candidate);
 });
 
+const preMegResult = applyPreMegTiebreaker(pool);
+
+if (preMegResult.winner) {
+  return preMegResult.winner;
+}
+
 return applyConfiguredTiebreakers(
-  pool,
+  preMegResult.pool,
   "bestSafeAggressive",
   { huntMode }
 );
@@ -9285,17 +9397,32 @@ function renderAdvancedSafetySettings() {
 			
 			<div class="advanced-setting-row">
   <div class="advanced-setting-control">
-    <button
-      id="safeMissEndsGameTiebreakerToggle"
-      class="${safeMissEndsGameTiebreaker ? "active-btn" : ""}"
-      onclick="toggleSafeMissEndsGameTiebreaker(this)"
-    >
-      Miss-Ends-Game Tiebreaker
-    </button>
+    <div style="display:flex; flex-direction:column; gap:6px; align-items:flex-start;">
+      <button
+        id="preMegTiebreakersToggle"
+        class="${preMegTiebreakersEnabled ? "active-btn" : ""}"
+        onclick="togglePreMegTiebreakers(this)"
+      >
+        Pre-MEG Tiebreakers
+      </button>
+
+      <select
+        id="preMegTiebreakerModeSelect"
+        style="max-width: 210px;"
+        onchange="setPreMegTiebreakerMode(this.value)"
+      >
+        <option value="worstOutcomeBoards" ${preMegTiebreakerMode === "worstOutcomeBoards" ? "selected" : ""}>
+          Worst Outcome: Board Count
+        </option>
+        <option value="missEndsGameForcedTiles" ${preMegTiebreakerMode === "missEndsGameForcedTiles" ? "selected" : ""}>
+          MEG Branch: Guaranteed Tiles
+        </option>
+      </select>
+    </div>
   </div>
 
   <div class="advanced-setting-description">
-    When a candidate can enter miss-ends-game, prefer the move whose worst branch leaves more guaranteed tiles.
+    If a move would cause the next miss to end the game, apply a top-priority Best Safe Move tiebreaker.
   </div>
 </div>
 
@@ -13511,7 +13638,8 @@ function hasNonDefaultAdvancedSettings() {
   rareTargetingAggressiveness !== "default" ||
   overlapPreference !== "default" ||
   evPreference !== "default" ||
-  safeMissEndsGameTiebreaker !== true
+  preMegTiebreakersEnabled !== true ||
+preMegTiebreakerMode !== "worstOutcomeBoards"
 );
 }
 
@@ -13725,14 +13853,22 @@ function getMovesForCurrentGrid(){
 // T.16 EVENT BINDS
 // ===============================
 
-window.toggleSafeMissEndsGameTiebreaker = function(btn) {
-  safeMissEndsGameTiebreaker =
-    !safeMissEndsGameTiebreaker;
+window.togglePreMegTiebreakers = function(btn) {
+  preMegTiebreakersEnabled =
+    !preMegTiebreakersEnabled;
 
   btn.classList.toggle(
     'active-btn',
-    safeMissEndsGameTiebreaker
+    preMegTiebreakersEnabled
   );
+
+  updateTieBreakerNotice();
+  refreshRecommendationsForAdvancedSettingChange();
+};
+
+window.setPreMegTiebreakerMode = function(value) {
+  preMegTiebreakerMode = value;
+
   updateTieBreakerNotice();
   refreshRecommendationsForAdvancedSettingChange();
 };
@@ -13803,7 +13939,8 @@ window.resetAllAdvancedSettings = function() {
   rareTargetingAggressiveness = "default";
   overlapPreference = "default";
   evPreference = "default";
-  safeMissEndsGameTiebreaker = true;
+  preMegTiebreakersEnabled = true;
+preMegTiebreakerMode = "worstOutcomeBoards";
 
   if (rareCount !== null) {
     applyDefaultSafetySettingsForRareCount(
