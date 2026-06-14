@@ -3801,7 +3801,7 @@ function runSimulation(){
 
   const context = buildSimulationContext();
 
-  handleForcedModes(context);
+  if (handleForcedModes(context)) return;
 
   resetHeatmapUI();
 
@@ -14129,7 +14129,7 @@ updateLastUpdatedBadge();
 
 <div class="sharebar">
   <div class="section" style="width:100%;">
-    <span class="label">Board State / History Code:</span>
+    <span class="label">Share Code:</span>
 
     <input id="hashInput" placeholder="Paste or generate code">
 
