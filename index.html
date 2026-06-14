@@ -1762,6 +1762,13 @@ const EV_PREFERENCE_PRESETS = {
   strong: 0.50
 };
 
+const PRE_MEG_TIEBREAKER_EXPORT_ORDER = [
+  "worstOutcomeBoards",
+  "missEndsGameForcedTiles",
+  "avoidMissEndsGame",
+  "missEndsGameForcedEV"
+];
+
 const DEFAULT_TIEBREAKER_CONFIG = {
   finalDecisionSetup: [
     "riskAdjustedRemaining",
@@ -7317,7 +7324,7 @@ function encodeAdvancedSettings() {
     safeAvoidAdjacentKnown ? 1 : 0,
     safeAggressiveAvoidHighProb ? 1 : 0,
 preMegTiebreakersEnabled ? 1 : 0,
-preMegTiebreakerMode === "missEndsGameForcedTiles" ? 1 : 0
+PRE_MEG_TIEBREAKER_EXPORT_ORDER.indexOf(preMegTiebreakerMode)
   ].join(",");
 
 const presetPart = [
@@ -7392,9 +7399,8 @@ function loadAdvancedSettingsCodePayload(code) {
 preMegTiebreakerMode =
   safety.length < 6
     ? "worstOutcomeBoards"
-    : safety[5] === 1
-      ? "missEndsGameForcedTiles"
-      : "worstOutcomeBoards";
+    : PRE_MEG_TIEBREAKER_EXPORT_ORDER[safety[5]] ||
+      "worstOutcomeBoards";
 
     const presets = presetPart.split(",").map(Number);
 
@@ -8567,6 +8573,108 @@ function getWorstOutcomeBoardCountScore(candidate) {
     : Infinity;
 }
 
+function getMissEndsGameChanceScore(candidate) {
+  const context = getInfoContext();
+
+  if (
+    context.missEndsGame ||
+    !appState.allBoards ||
+    appState.allBoards.length === 0
+  ) {
+    return Infinity;
+  }
+
+  const buckets = bucketBoardsByOutcome(
+    appState.allBoards,
+    candidate.i
+  );
+
+  let missEndsGameBoards = 0;
+
+  for (const outcome in buckets) {
+    if (!doesOutcomeEnterMissEndsGame(context, outcome)) {
+      continue;
+    }
+
+    missEndsGameBoards += buckets[outcome].length;
+  }
+
+  return missEndsGameBoards / appState.allBoards.length;
+}
+
+function countForcedEVInBoards(boards, revealedTile) {
+  if (!boards || boards.length === 0) return 0;
+
+  let forcedEV = 0;
+
+  for (let i = 0; i < 25; i++) {
+    if (i === revealedTile) continue;
+    if (grid[i] !== null) continue;
+
+    const first = getBoardColorAt(boards[0], i);
+
+    const allSame = boards.every(board =>
+      getBoardColorAt(board, i) === first
+    );
+
+    if (!allSame) continue;
+
+    if (first !== null && first !== undefined) {
+      forcedEV += TILE_EV[first] || 0;
+    }
+  }
+
+  return forcedEV;
+}
+
+function getMissEndsGameForcedEVScore(candidate) {
+  const context = getInfoContext();
+
+  if (
+    context.missEndsGame ||
+    !appState.allBoards ||
+    appState.allBoards.length === 0
+  ) {
+    return {
+      entersMissEndsGame: false,
+      forcedEV: 0
+    };
+  }
+
+  const buckets = bucketBoardsByOutcome(
+    appState.allBoards,
+    candidate.i
+  );
+
+  let worstForcedEV = Infinity;
+  let entersMissEndsGame = false;
+
+  for (const outcome in buckets) {
+    if (!doesOutcomeEnterMissEndsGame(context, outcome)) {
+      continue;
+    }
+
+    entersMissEndsGame = true;
+
+    const forcedEV = countForcedEVInBoards(
+      buckets[outcome],
+      candidate.i
+    );
+
+    worstForcedEV = Math.min(
+      worstForcedEV,
+      forcedEV
+    );
+  }
+
+  return {
+    entersMissEndsGame,
+    forcedEV: entersMissEndsGame
+      ? worstForcedEV
+      : 0
+  };
+}
+
 function applyPreMegTiebreaker(pool) {
   const context = getInfoContext();
 
@@ -8583,6 +8691,32 @@ function applyPreMegTiebreaker(pool) {
     };
   }
 
+  if (preMegTiebreakerMode === "avoidMissEndsGame") {
+    const result = applyTiebreakLayer(
+      pool,
+      c => c.missEndsGameChance,
+      false,
+      "Lowest chance to enter miss-ends-game",
+      0
+    );
+
+    return { ...result, applied: true };
+  }
+
+  if (preMegTiebreakerMode === "missEndsGameForcedEV") {
+    const result = applyTiebreakLayer(
+      pool,
+      c => c.entersMissEndsGame
+        ? c.missEndsGameForcedEV || 0
+        : -Infinity,
+      true,
+      "More guaranteed EV on worst miss-ends-game branch",
+      0
+    );
+
+    return { ...result, applied: true };
+  }
+
   if (preMegTiebreakerMode === "missEndsGameForcedTiles") {
     const result = applyTiebreakLayer(
       pool,
@@ -8594,10 +8728,7 @@ function applyPreMegTiebreaker(pool) {
       0
     );
 
-    return {
-      ...result,
-      applied: true
-    };
+    return { ...result, applied: true };
   }
 
   const result = applyTiebreakLayer(
@@ -8610,10 +8741,7 @@ function applyPreMegTiebreaker(pool) {
     0
   );
 
-  return {
-    ...result,
-    applied: true
-  };
+  return { ...result, applied: true };
 }
 
 function getMissEndsGameForcedTileScore(candidate) {
@@ -8825,6 +8953,19 @@ pool.forEach(candidate => {
 
   candidate.missEndsGameForcedTiles =
     missEndsGameScore.forcedTiles;
+	
+	candidate.missEndsGameChance =
+  getMissEndsGameChanceScore(candidate);
+
+const forcedEVScore =
+  getMissEndsGameForcedEVScore(candidate);
+
+candidate.entersMissEndsGame =
+  candidate.entersMissEndsGame ||
+  forcedEVScore.entersMissEndsGame;
+
+candidate.missEndsGameForcedEV =
+  forcedEVScore.forcedEV;
 
   const worstBoardScore =
   getWorstOutcomeBoardCountScore(candidate);
@@ -9420,7 +9561,7 @@ function renderAdvancedSafetySettings() {
         class="${preMegTiebreakersEnabled ? "active-btn" : ""}"
         onclick="togglePreMegTiebreakers(this)"
       >
-        Pre-MEG Tiebreakers
+        Pre-MEG Tiebreaker
       </button>
 
       <select
@@ -9434,12 +9575,18 @@ function renderAdvancedSafetySettings() {
         <option value="missEndsGameForcedTiles" ${preMegTiebreakerMode === "missEndsGameForcedTiles" ? "selected" : ""}>
           MEG Branch: Guaranteed Tiles
         </option>
+		<option value="avoidMissEndsGame" ${preMegTiebreakerMode === "avoidMissEndsGame" ? "selected" : ""}>
+		Lowest MEG Chance
+		</option>
+		<option value="missEndsGameForcedEV" ${preMegTiebreakerMode === "missEndsGameForcedEV" ? "selected" : ""}>
+		MEG Branch: Guaranteed EV
+		</option>
       </select>
     </div>
   </div>
 
   <div class="advanced-setting-description">
-    If a move would cause the next miss to end the game, apply a top-priority Best Safe Move tiebreaker.
+    If a move could cause the next Miss to End the Game (MEG), apply a top-priority Best Safe Move tiebreaker. Can be toggled off. Apply whichever of the options you like.
   </div>
 </div>
 
