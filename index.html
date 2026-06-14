@@ -8496,9 +8496,9 @@ function countForcedTilesInBoards(boards, revealedTile) {
 
     if (!allSame) continue;
 
-    if (!first || !isAnonymousRareShip(first)) {
-      forcedCount++;
-    }
+    if (first !== null && first !== undefined) {
+  forcedCount++;
+}
   }
 
   return forcedCount;
