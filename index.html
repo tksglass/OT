@@ -2283,8 +2283,8 @@ const prevSnapshot = {
   const prevColor = grid[i];
   const newColor = toggleColor(i);
   
-  const wasResolutionOpportunityClick =
-  grid[i] === null &&
+const wasResolutionOpportunityClick =
+  prevColor === null &&
   appState.resolutionOpportunityMove?.i === i;
 
 pendingResolutionOpportunityClick = false;
@@ -10473,7 +10473,6 @@ if (appendFinalDecisionSetupCard(messages)) {
 
 appendResolutionOpportunityCard(messages, context);
 appendStrategyMessages(messages, context);
-appendResolutionOpportunityFailureCard(messages);
 }
 }
 
@@ -10587,38 +10586,22 @@ function isRareClarifyingTile(tile) {
   return getUnfoundRareProbability(tile, appState.allBoards || []) > 0;
 }
 
-function maybeShowResolutionOpportunitySuccessEgg() {
+function maybeShowResolutionOpportunityResultEgg() {
   if (!pendingResolutionOpportunityClick) return "";
 
   pendingResolutionOpportunityClick = false;
 
+  const succeeded =
+    !!appState.forcedResolutionMove ||
+    !!appState.finalDecisionMove ||
+    !!appState.isTrueEndgame;
+
   return maybeShowEasterEgg(
-    "wavefunctionCollapses",
-    "The wavefunction collapses."
+    succeeded ? "wavefunctionCollapses" : "abyssGazesBack",
+    succeeded
+      ? "The wavefunction collapses."
+      : "The abyss gazes back."
   );
-}
-
-function appendResolutionOpportunityFailureCard(messages) {
-  if (!pendingResolutionOpportunityClick) return false;
-
-  pendingResolutionOpportunityClick = false;
-
-  const egg = maybeShowEasterEgg(
-    "abyssGazesBack",
-    "The abyss gazes back."
-  );
-
-  if (!egg) return false;
-
-  messages.push(
-    makeCard(
-      "Resolution Opportunity",
-      egg.replace(/^<br><br>/, ""),
-      "info-red"
-    )
-  );
-
-  return true;
 }
 
 function maybeShowEasterEgg(key, text) {
@@ -10656,7 +10639,6 @@ const introText =
         <br>
         Worst outcome: <b>${move.worstRemaining.toFixed(0)} boards</b>
         ${getTiebreakerText(move)}
-${maybeShowResolutionOpportunitySuccessEgg()}
       `,
       "info-green"
     )
@@ -10684,7 +10666,6 @@ function appendForcedResolutionCard(messages) {
         Expected boards after reveal: <b>${move.expectedRemaining.toFixed(1)}</b>
 		${getTiebreakerText(move)}
 		${maybeShowEasterEgg("entropyLeft", "Entropy has left the chat.")}
-${maybeShowResolutionOpportunitySuccessEgg()}
       `,
       "info-green"
     )
@@ -11252,7 +11233,6 @@ const displayCandidates =
   "schrodingersOT",
   "Schrödinger's Ship: The ship both exists and does not exist."
 )}
-${maybeShowResolutionOpportunitySuccessEgg()}
     `,
     "info-purple"
   )
@@ -13334,6 +13314,9 @@ function buildSolverBadge() {
     unknownTiles.every(p => p === 0 || p === 1);
 
   let deterministicText = "";
+  
+  const resolutionOpportunityEgg =
+  maybeShowResolutionOpportunityResultEgg();
 
   if (deterministicBoard) {
     deterministicText = `
@@ -13353,6 +13336,7 @@ function buildSolverBadge() {
         Solver mode: Exact Enumeration${countOnlyText}
         <br>Boards: ${info.boards}
         ${deterministicText}
+		${resolutionOpportunityEgg}
       </div>
     `;
   }
@@ -13364,6 +13348,7 @@ function buildSolverBadge() {
       Solver mode: MCMC Simulation
       <br>· ${confidence} confidence; Valid samples: ${info.valid}
       ${deterministicText}
+	  ${resolutionOpportunityEgg}
     </div>
   `;
 }
