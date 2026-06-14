@@ -11005,13 +11005,21 @@ isRareTarget
     ${getTiebreakerText(move)}
   `
     : `
-      ${introText}
-      ${coordText}
-      <br><br>
-        <b>Why this tile?</b><br>
-        ${reason}
-        ${getTiebreakerText(move)}
-    `
+  ${introText}
+  ${coordText}
+  <br><br>
+    <b>Why this tile?</b><br>
+    ${reason}
+    ${getTiebreakerText(move)}
+    ${
+      misses >= 7 && hits <= 1
+        ? maybeShowEasterEgg(
+            "oceanLarge",
+            "The ocean is large today. 🌊"
+          )
+        : ""
+    }
+`
 }
     `,
     "info-progress"
