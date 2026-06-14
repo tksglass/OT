@@ -2162,7 +2162,7 @@ const RAW_PLACEMENTS = {
 // ===============================
 
 let preMegTiebreakersEnabled = true;
-let preMegTiebreakerMode = "worstOutcomeBoards";
+let preMegTiebreakerMode = "avoidMissEndsGame";
 
 let staggerBoardMode = 0;
 
@@ -9561,7 +9561,7 @@ function renderAdvancedSafetySettings() {
         class="${preMegTiebreakersEnabled ? "active-btn" : ""}"
         onclick="togglePreMegTiebreakers(this)"
       >
-        Pre-MEG Tiebreaker
+        Pre-MEG Tiebreaker 🦈
       </button>
 
       <select
@@ -13803,7 +13803,7 @@ function hasNonDefaultAdvancedSettings() {
   overlapPreference !== "default" ||
   evPreference !== "default" ||
   preMegTiebreakersEnabled !== true ||
-preMegTiebreakerMode !== "worstOutcomeBoards"
+preMegTiebreakerMode !== "avoidMissEndsGame"
 );
 }
 
@@ -14104,7 +14104,7 @@ window.resetAllAdvancedSettings = function() {
   overlapPreference = "default";
   evPreference = "default";
   preMegTiebreakersEnabled = true;
-preMegTiebreakerMode = "worstOutcomeBoards";
+  preMegTiebreakerMode = "avoidMissEndsGame";
 
   if (rareCount !== null) {
     applyDefaultSafetySettingsForRareCount(
