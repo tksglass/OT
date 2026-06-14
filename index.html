@@ -2215,6 +2215,10 @@ let heatmapMode = "probability";
 let lastAutoFillHitCount = 0;
 let activeColorPickerTile = null;
 
+const EASTER_EGG_CHANCE = 0.025;
+
+let shownEasterEggs = new Set();
+
 let showGambaHighlight = false;
 let safeRiskBand = 0.05;
 let resolutionOpportunityThreshold = 0.10;
@@ -2593,6 +2597,8 @@ lastAutoFillHitCount = 0;
 updateAutoHitsButton();
 targetRareShipsMode = false;
 showGambaHighlight = false;
+
+shownEasterEggs = new Set();
 
 simulationMode = false;
 simulationBoard = null;
@@ -10365,8 +10371,12 @@ if (appState.specialGroup) {
   const specialMessages = [];
 
   if (context.missEndsGame) {
-    specialMessages.push(buildMissEndCard(context));
-  }
+  const missEndCard =
+    messages.find(m => m.includes("Miss Ends The Game")) ||
+    buildMissEndCard(context);
+
+  specialMessages.push(missEndCard);
+}
 
   specialMessages.push(equivalenceHTML);
 
@@ -10471,7 +10481,10 @@ function buildMissEndCard(ctx) {
   return `
     <div class="info-card info-purple info-alert">
       <div class="info-card-title">Miss Ends The Game</div>
-      <div>Any blue tile will end the run.</div>
+      <div>
+        Any blue tile will end the run.
+        ${maybeShowEasterEgg("megApproaches", "The Meg approaches. 🦈")}
+      </div>
     </div>
   `;
 }
@@ -10555,6 +10568,18 @@ function isRareClarifyingTile(tile) {
   return getUnfoundRareProbability(tile, appState.allBoards || []) > 0;
 }
 
+function maybeShowEasterEgg(key, text) {
+  if (shownEasterEggs.has(key)) return "";
+
+  if (Math.random() >= EASTER_EGG_CHANCE) {
+    return "";
+  }
+
+  shownEasterEggs.add(key);
+
+  return `<br><br><i>${text}</i>`;
+}
+
 function appendFinalDecisionSetupCard(messages) {
   const move = appState.finalDecisionMove;
   if (!move || move.i === undefined) return false;
@@ -10603,7 +10628,8 @@ function appendForcedResolutionCard(messages) {
         Blue chance: <b>${((1 - move.p) * 100).toFixed(1)}%</b>
         <br>
         Expected boards after reveal: <b>${move.expectedRemaining.toFixed(1)}</b>
-        ${getTiebreakerText(move)}
+		${getTiebreakerText(move)}
+		${maybeShowEasterEgg("entropyLeft", "Entropy has left the chat.")}
       `,
       "info-green"
     )
@@ -11147,12 +11173,20 @@ const displayCandidates =
   }).join("<br>");
 
   messages.push(
-    makeCard(
-      "Final Decision",
-      `<span style="color:#22c55e">Choose either:</span><br><br>${coords}`,
-      "info-purple"
-    )
-  );
+  makeCard(
+    "Final Decision",
+    `
+      <span style="color:#22c55e">Choose either:</span>
+      <br><br>
+      ${coords}
+      ${maybeShowEasterEgg(
+        "schrodingersOT",
+        "Schrödinger's Ship: The ship both exists and does not exist."
+      )}
+    `,
+    "info-purple"
+  )
+);
 
 renderInfoMessages(messages);
 return true;
