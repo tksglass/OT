@@ -8450,7 +8450,13 @@ function findGuaranteedMove(candidates, huntMode) {
   const guaranteedHit = candidates.find(c => c.p === 1);
   const guaranteedMiss = candidates.find(c => c.p === 0);
 
-  if(!huntMode){
+  if (!huntMode) {
+    const { misses } = getHitMissCounts();
+
+    if (misses < 3) {
+      return null;
+    }
+
     return guaranteedMiss;
   }
 
@@ -10948,6 +10954,8 @@ function appendNormalClarityMoveCard(messages) {
 function appendSafeModeProgressCard(messages) {
   if (!appState.safeOverride) return;
   if (appState.safeOverrideSource === "forcedResolution") return;
+  
+  const { hits, misses } = getHitMissCounts();
 
   const move = appState.topMoves?.[0];
   const reason =
@@ -11130,7 +11138,7 @@ const hasForcedHit =
   hasGuaranteedUnknownHits();
 
 if (
-  hasFreeKnownBlue ||
+  (hasFreeKnownBlue && context?.huntMode) ||
   (hasForcedHit && context?.missEndsGame)
 ) {
   return false;
@@ -13993,7 +14001,7 @@ function loadFromHash(hash){
     const rareCountVal = decoded.rareCountVal;
     const modeVal = decoded.modeVal;
 
-    resetAll();
+    window.resetAll();
 
 rareCount = rareCountVal;
 forcedStartMode = modeVal || "aggressive";
