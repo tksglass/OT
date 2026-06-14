@@ -7423,10 +7423,15 @@ evPreference =
   }
 }
 
-function applyConfiguredTiebreakers(candidates, moveClass, context = {}) {
+function applyConfiguredTiebreakers(
+  candidates,
+  moveClass,
+  context = {},
+  startingLayer = 0
+) {
   let pool = candidates;
   const order = tieBreakerConfig[moveClass] || [];
-  let layer = 0;
+  let layer = startingLayer;
 
   for (const key of order) {
     const def = TIEBREAKER_DEFINITIONS[key];
@@ -8573,12 +8578,13 @@ function applyPreMegTiebreaker(pool) {
   ) {
     return {
       winner: null,
-      pool
+      pool,
+      applied: false
     };
   }
 
   if (preMegTiebreakerMode === "missEndsGameForcedTiles") {
-    return applyTiebreakLayer(
+    const result = applyTiebreakLayer(
       pool,
       c => c.entersMissEndsGame
         ? c.missEndsGameForcedTiles || 0
@@ -8587,9 +8593,14 @@ function applyPreMegTiebreaker(pool) {
       "More guaranteed tiles on worst outcome branch if miss-ends-game would activate",
       0
     );
+
+    return {
+      ...result,
+      applied: true
+    };
   }
 
-  return applyTiebreakLayer(
+  const result = applyTiebreakLayer(
     pool,
     c => c.entersMissEndsGame
       ? c.worstOutcomeBoardCount
@@ -8598,6 +8609,11 @@ function applyPreMegTiebreaker(pool) {
     "Lowest board count on worst miss-ends-game branch",
     0
   );
+
+  return {
+    ...result,
+    applied: true
+  };
 }
 
 function getMissEndsGameForcedTileScore(candidate) {
@@ -8815,10 +8831,10 @@ pool.forEach(candidate => {
 
 candidate.entersMissEndsGame =
   candidate.entersMissEndsGame ||
-  worstBoardScore.entersMissEndsGame;
+  Number.isFinite(worstBoardScore);
 
 candidate.worstOutcomeBoardCount =
-  worstBoardScore.boardCount;
+  worstBoardScore;
 
   candidate.safeBoardReduction =
     getCandidateReduction(candidate);
@@ -8836,7 +8852,8 @@ if (preMegResult.winner) {
 return applyConfiguredTiebreakers(
   preMegResult.pool,
   "bestSafeAggressive",
-  { huntMode }
+  { huntMode },
+  preMegResult.applied ? 1 : 0
 );
 }
 
