@@ -1680,68 +1680,88 @@ const LOCKED_FALLBACK_TIEBREAKER = "tileIndex";
 
 const STRATEGIC_SCORE_PRESETS = {
   default: {
-    aggressiveReduction: 1.35,
-    aggressiveHitChance: 0.65,
-    aggressiveUnfound: 0.85,
-    aggressiveMissPenalty: 0.20,
-    earlyUnfoundBonus: 0.65,
-    earlyReductionBonus: 0.25,
-    lateHitBonus: 0.35,
-    lateMissPenalty: 0.15,
-    safeReduction: 1.20,
-    safeUnfound: 0.35,
-    safeHitPenalty: 0.45,
-    partialPenalty: 0.08,
-    earlyAdjacencyPenalty: 100
+    safeInfoGain: 1.50,
+    safeShipDiscovery: 0.85,
+    safeFreeBlue: 0.55,
+    safeWorstSafety: 0.65,
+    safeHitRiskPenalty: 1.15,
+    safeMegBluePenalty: 1.75,
+    safePartialPenalty: 0.08,
+    safeAdjacencyPenalty: 100,
+
+    aggressiveHitChance: 1.25,
+    aggressiveInfoGain: 0.95,
+    aggressiveShipDiscovery: 0.85,
+    aggressiveEV: 0.55,
+    aggressiveWorstSafety: 0.45,
+    aggressiveMissPenalty: 0.45,
+    aggressiveMegBluePenalty: 0.70,
+    aggressivePartialPenalty: 0.05,
+    aggressiveAdjacencyPenalty: 100
   },
 
-  reductionHeavy: {
-    aggressiveReduction: 1.75,
-    aggressiveHitChance: 0.45,
-    aggressiveUnfound: 0.65,
-    aggressiveMissPenalty: 0.20,
-    earlyUnfoundBonus: 0.45,
-    earlyReductionBonus: 0.45,
-    lateHitBonus: 0.20,
-    lateMissPenalty: 0.15,
-    safeReduction: 1.60,
-    safeUnfound: 0.25,
-    safeHitPenalty: 0.45,
-    partialPenalty: 0.08,
-    earlyAdjacencyPenalty: 100
-  },
+reductionHeavy: {
+  safeInfoGain: 2.80,
+  safeShipDiscovery: 0.35,
+  safeFreeBlue: 0.30,
+  safeWorstSafety: 1.65,
+  safeHitRiskPenalty: 1.10,
+  safeMegBluePenalty: 1.90,
+  safePartialPenalty: 0.08,
+  safeAdjacencyPenalty: 100,
 
-  shipDiscovery: {
-    aggressiveReduction: 1.10,
-    aggressiveHitChance: 0.55,
-    aggressiveUnfound: 1.25,
-    aggressiveMissPenalty: 0.20,
-    earlyUnfoundBonus: 0.95,
-    earlyReductionBonus: 0.15,
-    lateHitBonus: 0.25,
-    lateMissPenalty: 0.15,
-    safeReduction: 1.00,
-    safeUnfound: 0.70,
-    safeHitPenalty: 0.45,
-    partialPenalty: 0.08,
-    earlyAdjacencyPenalty: 100
-  },
+  aggressiveHitChance: 0.70,
+  aggressiveInfoGain: 2.35,
+  aggressiveShipDiscovery: 0.35,
+  aggressiveEV: 0.25,
+  aggressiveWorstSafety: 1.25,
+  aggressiveMissPenalty: 0.45,
+  aggressiveMegBluePenalty: 0.75,
+  aggressivePartialPenalty: 0.05,
+  aggressiveAdjacencyPenalty: 100
+},
 
-  hitFocused: {
-    aggressiveReduction: 1.10,
-    aggressiveHitChance: 1.05,
-    aggressiveUnfound: 0.65,
-    aggressiveMissPenalty: 0.10,
-    earlyUnfoundBonus: 0.45,
-    earlyReductionBonus: 0.15,
-    lateHitBonus: 0.55,
-    lateMissPenalty: 0.10,
-    safeReduction: 1.10,
-    safeUnfound: 0.25,
-    safeHitPenalty: 0.30,
-    partialPenalty: 0.08,
-    earlyAdjacencyPenalty: 100
-  }
+shipDiscovery: {
+  safeInfoGain: 0.95,
+  safeShipDiscovery: 2.70,
+  safeFreeBlue: 0.30,
+  safeWorstSafety: 0.45,
+  safeHitRiskPenalty: 0.95,
+  safeMegBluePenalty: 1.65,
+  safePartialPenalty: 0.04,
+  safeAdjacencyPenalty: 100,
+
+  aggressiveHitChance: 0.85,
+  aggressiveInfoGain: 0.55,
+  aggressiveShipDiscovery: 2.70,
+  aggressiveEV: 0.30,
+  aggressiveWorstSafety: 0.25,
+  aggressiveMissPenalty: 0.35,
+  aggressiveMegBluePenalty: 0.60,
+  aggressivePartialPenalty: 0.03,
+  aggressiveAdjacencyPenalty: 100
+},
+
+hitFocused: {
+  safeInfoGain: 0.90,
+  safeShipDiscovery: 0.35,
+  safeFreeBlue: 0.25,
+  safeWorstSafety: 0.25,
+  safeHitRiskPenalty: 0.25,
+  safeMegBluePenalty: 1.25,
+  safePartialPenalty: 0.08,
+  safeAdjacencyPenalty: 100,
+
+  aggressiveHitChance: 3.00,
+  aggressiveInfoGain: 0.35,
+  aggressiveShipDiscovery: 0.35,
+  aggressiveEV: 1.35,
+  aggressiveWorstSafety: 0.10,
+  aggressiveMissPenalty: 0.05,
+  aggressiveMegBluePenalty: 0.25,
+  aggressivePartialPenalty: 0.03,
+  aggressiveAdjacencyPenalty: 100
+}
 };
 
 const RARE_TARGETING_PRESETS = {
@@ -1752,14 +1772,14 @@ const RARE_TARGETING_PRESETS = {
 
 const OVERLAP_PREFERENCE_PRESETS = {
   default: 0,
-  moderate: 0.08,
-  strong: 0.18
+  moderate: 1.25,
+  strong: 3.00
 };
 
 const EV_PREFERENCE_PRESETS = {
   default: 0,
-  moderate: 0.25,
-  strong: 0.50
+  moderate: 1.25,
+  strong: 3.00
 };
 
 const PRE_MEG_TIEBREAKER_EXPORT_ORDER = [
@@ -9141,79 +9161,157 @@ function getUndiscoveredShipTiebreakLabel(current, next) {
   return null;
 }
 
+function clamp01(value) {
+  if (!Number.isFinite(value)) return 0;
+  return Math.max(0, Math.min(1, value));
+}
+
+function getCandidateWorstRemaining(c) {
+  const buckets = outcomeBucketsCache?.[c.i];
+
+  if (!buckets || !appState.allBoards?.length) {
+    return Number.isFinite(c.expectedRemaining)
+      ? c.expectedRemaining
+      : null;
+  }
+
+  let worst = 0;
+
+  for (const key in buckets) {
+    worst = Math.max(worst, buckets[key]);
+  }
+
+  return worst;
+}
+
+function getCandidateWorstSafety(c) {
+  const totalBoards = appState.allBoards?.length || 0;
+  const worstRemaining = getCandidateWorstRemaining(c);
+
+  if (!totalBoards || !Number.isFinite(worstRemaining)) {
+    return getCandidateReduction(c);
+  }
+
+  return clamp01(1 - worstRemaining / totalBoards);
+}
+
+function getStrategicMegPressure() {
+  const { hits, misses } = getHitMissCounts();
+
+  let pressure = 0;
+
+  if (hits >= 5) pressure += 1;
+  else if (hits === 4) pressure += 0.35;
+
+  if (misses >= 3) pressure += 1;
+  else if (misses === 2) pressure += 0.65;
+  else if (misses === 1) pressure += 0.25;
+
+  return clamp01(pressure / 2);
+}
+
+function getCandidateShipDiscoveryScore(c) {
+  const stats =
+    c.undiscoveredShip ||
+    getUndiscoveredShipTiebreakStats(c.i, appState.allBoards);
+
+  return clamp01(
+    (stats.size4 || 0) * 1.00 +
+    (stats.size3 || 0) * 0.75 +
+    (stats.size2 || 0) * 0.45
+  );
+}
+
+function getCandidateNormalizedEV(c) {
+  const ev =
+    c.weightedEV ??
+    c.ev ??
+    getCandidateWeightedEV(c.i);
+
+  return clamp01(ev / TILE_EV.rainbow);
+}
+
+function getCandidateOverlapChance(c) {
+  const totalBoards = appState.allBoards?.length || 0;
+  const overlapCount = getCandidateShipOverlapCount(c.i);
+
+  if (!totalBoards) return 0;
+
+  return clamp01(overlapCount / totalBoards);
+}
+
+function getAdvancedStrategicScoreModifier(c) {
+  return (
+    getCandidateOverlapChance(c) * getOverlapPreferenceWeight() +
+    getCandidateNormalizedEV(c) * getEVPreferenceWeight()
+  );
+}
+
 function scoreStrategicCandidate(c, huntMode) {
   const p = c.p;
   const hitChance = p;
-  const missChance = 1 - p;
+  const blueChance = 1 - p;
 
-  const reduction = getCandidateReduction(c);
-
-const overlapScore =
-  getCandidateShipOverlapCount(c.i) *
-  getOverlapPreferenceWeight();
-
-const evScore =
-  (getCandidateWeightedEV(c.i) / 100) *
-  getEVPreferenceWeight();
-
-  const canUseUnfoundBonus =
-    appState.allBoards &&
-    appState.allBoards.length > 0;
-
-  const unfoundColorBonus = canUseUnfoundBonus
-    ? getCandidateUnfoundColorBonus(c.i, appState.allBoards)
-    : 0;
+  const infoGain = getCandidateReduction(c);
+  const worstSafety = getCandidateWorstSafety(c);
+  const shipDiscovery = getCandidateShipDiscoveryScore(c);
+  const normalizedEV = getCandidateNormalizedEV(c);
+  const megPressure = getStrategicMegPressure();
 
   const partialTiles = getPartialShipTiles();
   const phase = getGamePhase();
-  
+
   const weights =
-  STRATEGIC_SCORE_PRESETS[strategicScorePreset] ||
-  STRATEGIC_SCORE_PRESETS.default;
+    STRATEGIC_SCORE_PRESETS[strategicScorePreset] ||
+    STRATEGIC_SCORE_PRESETS.default;
 
-  let score = overlapScore + evScore;
+  let score = getAdvancedStrategicScoreModifier(c);
 
-if (huntMode) {
-  score += reduction * weights.aggressiveReduction;
-  score += hitChance * weights.aggressiveHitChance;
-  score += unfoundColorBonus * weights.aggressiveUnfound;
-  score -= missChance * weights.aggressiveMissPenalty;
+  if (huntMode) {
+    score += hitChance * weights.aggressiveHitChance;
+    score += infoGain * weights.aggressiveInfoGain;
+    score += shipDiscovery * weights.aggressiveShipDiscovery;
+    score += normalizedEV * weights.aggressiveEV;
+    score += worstSafety * weights.aggressiveWorstSafety;
 
-  if (phase === "early") {
-    score += unfoundColorBonus * weights.earlyUnfoundBonus;
-    score += reduction * weights.earlyReductionBonus;
-  }
+    score -= blueChance * weights.aggressiveMissPenalty;
+    score -= blueChance * megPressure * weights.aggressiveMegBluePenalty;
 
-  if (phase === "late") {
-    score += hitChance * weights.lateHitBonus;
-    score -= missChance * weights.lateMissPenalty;
-  }
-} else {
-  score += reduction * weights.safeReduction;
-  score += unfoundColorBonus * weights.safeUnfound;
-  score -= hitChance * weights.safeHitPenalty;
-}
+    if (partialTiles.has(c.i) && phase !== "late") {
+      score -= weights.aggressivePartialPenalty;
+    }
 
-if (partialTiles.has(c.i) && phase !== "late") {
-  score -= weights.partialPenalty;
-}
-
-if (
-    huntMode &&
-    phase === "early" &&
-    isAdjacentToKnown(c.i)
-  ) {
-    const hasNonAdjacentCandidate = appState.probs
-      ?.some((p, i) =>
+    if (phase === "early" && isAdjacentToKnown(c.i)) {
+      const hasNonAdjacentCandidate = appState.probs?.some((p, i) =>
         !grid[i] &&
         p > 0 &&
         p < 1 &&
         !isAdjacentToKnown(i)
       );
 
-    if (hasNonAdjacentCandidate) {
-      score -= weights.earlyAdjacencyPenalty;
+      if (hasNonAdjacentCandidate) {
+        score -= weights.aggressiveAdjacencyPenalty;
+      }
     }
+
+    return score;
+  }
+
+  const freeBlueValue =
+    getHitMissCounts().hits < 5
+      ? blueChance
+      : 0;
+
+  score += infoGain * weights.safeInfoGain;
+  score += shipDiscovery * weights.safeShipDiscovery;
+  score += freeBlueValue * weights.safeFreeBlue;
+  score += worstSafety * weights.safeWorstSafety;
+
+  score -= hitChance * weights.safeHitRiskPenalty;
+  score -= blueChance * megPressure * weights.safeMegBluePenalty;
+
+  if (partialTiles.has(c.i) && phase !== "late") {
+    score -= weights.safePartialPenalty;
   }
 
   return score;
@@ -9289,16 +9387,16 @@ function getConfiguredStrategicTiebreakerInfo(
 }
 
 function rankCandidates(candidates, huntMode) {
-  candidates.forEach(c => {
-    c.reduction = getCandidateReduction(c);
-    c.score = scoreStrategicCandidate(c, huntMode);
-    c.ev = getCandidateWeightedEV(c.i);
-    c.weightedEV = c.ev;
-    c.undiscoveredShip =
-      getUndiscoveredShipTiebreakStats(c.i, appState.allBoards);
-    c.tiebreaker = null;
-    c.tiebreakerPassed = null;
-  });
+ candidates.forEach(c => {
+  c.reduction = getCandidateReduction(c);
+  c.ev = getCandidateWeightedEV(c.i);
+  c.weightedEV = c.ev;
+  c.undiscoveredShip =
+    getUndiscoveredShipTiebreakStats(c.i, appState.allBoards);
+  c.score = scoreStrategicCandidate(c, huntMode);
+  c.tiebreaker = null;
+  c.tiebreakerPassed = null;
+});
 
   const moveClass = huntMode
     ? "strategicAggressive"
@@ -9477,7 +9575,7 @@ function renderAdvancedStrategicSettings() {
               </div>
 
               <div class="advanced-setting-description">
-                Adds preference for tiles that overlap more possible ship placements. Default adds no extra weight.
+                Adds preference for tiles that overlap more possible ship placements. Default adds no extra weight. Little effect in the early game due to data noise.
               </div>
             </div>
 
@@ -9494,7 +9592,7 @@ function renderAdvancedStrategicSettings() {
               </div>
 
               <div class="advanced-setting-description">
-                Adds preference for higher expected value during strategic scoring. Default adds no extra weight.
+                Adds preference for higher expected value during strategic scoring. Default adds no extra weight. Little effect in the early game due to data noise.
               </div>
             </div>
           `
