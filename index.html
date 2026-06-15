@@ -2252,6 +2252,7 @@ let overlapPreference = "default";
 let evPreference = "default";
 let safeAvoidAdjacentKnown = false;
 let safeAggressiveAvoidHighProb = false;
+let safeAggressiveAvoidHighProbThreshold = 0.90;
 
 let simulationMode = false;
 let simulationBoard = null;
@@ -7356,14 +7357,15 @@ function encodeAdvancedSettings() {
     )
     .join(".");
 
-  const safetyPart = [
-    Math.round(safeRiskBand * 100),
-    Math.round(resolutionOpportunityThreshold * 100),
-    safeAvoidAdjacentKnown ? 1 : 0,
-    safeAggressiveAvoidHighProb ? 1 : 0,
-preMegTiebreakersEnabled ? 1 : 0,
-PRE_MEG_TIEBREAKER_EXPORT_ORDER.indexOf(preMegTiebreakerMode)
-  ].join(",");
+const safetyPart = [
+  Math.round(safeRiskBand * 100),
+  Math.round(resolutionOpportunityThreshold * 100),
+  safeAvoidAdjacentKnown ? 1 : 0,
+  safeAggressiveAvoidHighProb ? 1 : 0,
+  preMegTiebreakersEnabled ? 1 : 0,
+  PRE_MEG_TIEBREAKER_EXPORT_ORDER.indexOf(preMegTiebreakerMode),
+  Math.round(safeAggressiveAvoidHighProbThreshold * 100)
+].join(",");
 
 const presetPart = [
   EQUIVALENCE_EXPORT_ORDER
@@ -7439,6 +7441,9 @@ preMegTiebreakerMode =
     ? "worstOutcomeBoards"
     : PRE_MEG_TIEBREAKER_EXPORT_ORDER[safety[5]] ||
       "worstOutcomeBoards";
+	  
+	  safeAggressiveAvoidHighProbThreshold =
+  safety.length < 7 ? 0.90 : safety[6] / 100;
 
     const presets = presetPart.split(",").map(Number);
 
@@ -8956,7 +8961,7 @@ const belowNinetyCandidates = candidates.filter(candidate => {
     ? candidate.p
     : 1 - candidate.p;
 
-  return displayedProbability <= 0.90;
+  return displayedProbability <= safeAggressiveAvoidHighProbThreshold;
 });
 
   if (belowNinetyCandidates.length > 0) {
@@ -9730,17 +9735,40 @@ function renderAdvancedSafetySettings() {
 
             <div class="advanced-setting-row">
               <div class="advanced-setting-control">
-                <button
-                  id="safeAggressiveAvoidHighProbToggle"
-                  class="${safeAggressiveAvoidHighProb ? "active-btn" : ""}"
-                  onclick="toggleSafeAggressiveAvoidHighProb(this)"
-                >
-                  Avoid &gt;90% Prob
-                </button>
+                <div style="display:flex; flex-direction:column; gap:6px; align-items:flex-start;">
+                  <button
+                    id="safeAggressiveAvoidHighProbToggle"
+                    class="${safeAggressiveAvoidHighProb ? "active-btn" : ""}"
+                    onclick="toggleSafeAggressiveAvoidHighProb(this)"
+                  >
+                    Avoid High-Probability Tiles
+                  </button>
+
+                  <select
+                    id="safeAggressiveAvoidHighProbThresholdSelect"
+                    style="max-width: 210px;"
+                    onchange="setSafeAggressiveAvoidHighProbThreshold(Number(this.value))"
+                    ${safeAggressiveAvoidHighProb ? "" : "disabled"}
+                  >
+                    <option value="80" ${safeAggressiveAvoidHighProbThreshold === 0.80 ? "selected" : ""}>
+                      Avoid &gt;80%
+                    </option>
+                    <option value="85" ${safeAggressiveAvoidHighProbThreshold === 0.85 ? "selected" : ""}>
+                      Avoid &gt;85%
+                    </option>
+                    <option value="90" ${safeAggressiveAvoidHighProbThreshold === 0.90 ? "selected" : ""}>
+                      Avoid &gt;90%
+                    </option>
+                    <option value="95" ${safeAggressiveAvoidHighProbThreshold === 0.95 ? "selected" : ""}>
+                      Avoid &gt;95%
+                    </option>
+                  </select>
+                </div>
               </div>
 
               <div class="advanced-setting-description">
-                In Aggressive mode, avoids very high-probability hit tiles when a miss does not end the game.
+                
+				In Aggressive mode, avoids very high-probability hit tiles when a miss does not end the game. 
               </div>
             </div>
           `
@@ -9933,6 +9961,7 @@ function applyDefaultSafetySettingsForRareCount(n) {
 
   safeAvoidAdjacentKnown = defaultOn;
   safeAggressiveAvoidHighProb = defaultOn;
+  safeAggressiveAvoidHighProbThreshold = 0.90;
 
   safeRiskBand = n === 2 ? 0.02 : 0.05;
 
@@ -9963,10 +9992,14 @@ function updateSafetySettingButtons() {
     'safeAggressiveAvoidHighProbToggle'
   );
 
+  const highProbSelect = document.getElementById(
+    'safeAggressiveAvoidHighProbThresholdSelect'
+  );
+
   if (adjacencyBtn) {
-const canUseAdjacencyAvoid =
-  !huntMode ||
-  !context?.missEndsGame;
+    const canUseAdjacencyAvoid =
+      !huntMode ||
+      !context?.missEndsGame;
 
     adjacencyBtn.disabled = !canUseAdjacencyAvoid;
 
@@ -9986,6 +10019,12 @@ const canUseAdjacencyAvoid =
     if (!canUseHighProbAvoid) {
       safeAggressiveAvoidHighProb = false;
       highProbBtn.classList.remove('active-btn');
+    }
+
+    if (highProbSelect) {
+      highProbSelect.disabled =
+        !canUseHighProbAvoid ||
+        !safeAggressiveAvoidHighProb;
     }
   }
 }
@@ -14204,6 +14243,19 @@ function getMovesForCurrentGrid(){
 // T.16 EVENT BINDS
 // ===============================
 
+window.setSafeAggressiveAvoidHighProbThreshold = function(value) {
+  safeAggressiveAvoidHighProbThreshold = value / 100;
+
+  if (appState.probs) {
+    highlightRecommendations(appState.probs);
+  } else {
+    runSimulation();
+  }
+
+  renderUI();
+  updateColorAvailability();
+};
+
 window.togglePreMegTiebreakers = function(btn) {
   preMegTiebreakersEnabled =
     !preMegTiebreakersEnabled;
@@ -14301,6 +14353,7 @@ window.resetAllAdvancedSettings = function() {
     safeRiskBand = 0.05;
     safeAvoidAdjacentKnown = false;
     safeAggressiveAvoidHighProb = false;
+	safeAggressiveAvoidHighProbThreshold = 0.90;
   }
 
   saveTieBreakerConfig();
@@ -14386,11 +14439,16 @@ window.toggleSafeAggressiveAvoidHighProb = function(btn) {
 
   btn.classList.toggle('active-btn', safeAggressiveAvoidHighProb);
 
-    if (appState.probs) {
+  document
+    .getElementById('safeAggressiveAvoidHighProbThresholdSelect')
+    ?.toggleAttribute('disabled', !safeAggressiveAvoidHighProb);
+
+  if (appState.probs) {
     highlightRecommendations(appState.probs);
   } else {
     runSimulation();
   }
+
   renderUI();
   updateColorAvailability();
 };
