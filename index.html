@@ -8462,15 +8462,15 @@ function findGuaranteedMove(candidates, huntMode) {
   const guaranteedHit = candidates.find(c => c.p === 1);
   const guaranteedMiss = candidates.find(c => c.p === 0);
 
-  if (!huntMode) {
-    const { misses, hits } = getHitMissCounts();
+if (!huntMode) {
+  const { hits } = getHitMissCounts();
 
-    if (misses < 3 && hits < 5) {
-      return null;
-    }
-
-    return guaranteedMiss;
+  if (hits >= 5) {
+    return null;
   }
+
+  return guaranteedMiss;
+}
 
   const { missEndsGame } = getInfoContext();
 
