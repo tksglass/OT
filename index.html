@@ -1656,6 +1656,28 @@ const ID_TO_COLOR = Object.fromEntries(
   Object.entries(COLOR_TO_ID).map(([k,v]) => [v,k])
 );
 
+const RECOMMENDATION_CLASSES = [
+  'recommended-best',
+  'recommended-second',
+  'recommended-safe',
+  'recommended-progress',
+  'recommended-danger',
+  'recommended-uncertainty',
+  'recommended-avoid',
+  'recommended-equal',
+  'recommended-size2',
+  'recommended-high-ev',
+  'recommended-final',
+  'recommended-gamba',
+  'stripe-overlay',
+  'stripe-rainbow',
+  'rainbow-highlight',
+  'guaranteed-unknown',
+  'equivalence-placed-dim',
+  'equivalence-stripe-dim',
+  'equivalence-gamba-active'
+];
+
 const DOM = {
   playBoard: null,
   heatmap: null,
@@ -1669,7 +1691,14 @@ heatmapModeButtons: null,
   infoBox: null,
   topInfoBox: null,
   confidence: null,
-  modeLabel: null
+  modeLabel: null,
+    modeSafe: null,
+  modeAggressive: null,
+  simulationToggleBtn: null,
+  advancedSettingsContent: null,
+  hashInput: null,
+  colorTooltip: null,
+  lastUpdatedBadgeText: null
 };
 
 const FUTURE_COLLAPSE_BOARD_LIMIT = 200;
@@ -2030,6 +2059,7 @@ const SETTINGS_EXPORT_ORDER = [
 const EQUIVALENCE_EXPORT_ORDER = [
   "default",
   "strictEV",
+  "strictCollapse",
   "strictEVAndCollapse"
 ];
 
@@ -2050,6 +2080,12 @@ const OVERLAP_PREFERENCE_EXPORT_ORDER = [
   "default",
   "moderate",
   "strong"
+];
+
+const RESOLUTION_OPPORTUNITY_STYLE_EXPORT_ORDER = [
+  "any",
+  "forcedResolution",
+  "finalDecision"
 ];
 
 const EV_PREFERENCE_EXPORT_ORDER = [
@@ -2245,6 +2281,7 @@ let pendingResolutionOpportunityClick = false;
 let showGambaHighlight = false;
 let safeRiskBand = 0.05;
 let resolutionOpportunityThreshold = 0.10;
+let resolutionOpportunityStyle = "any";
 let equivalenceModeStrictness = "default";
 let strategicScorePreset = "default";
 let rareTargetingAggressiveness = "default";
@@ -2565,84 +2602,42 @@ window.resetAll = function(){
   selectedColor = null;
   rareCount = null;
   forcedStartMode = null;
-  history = [];
-  updateTopInfoVisibility();
+  currentMode = MODE.NORMAL;
+  appState = createEmptyAppState();
+  configLocked = false;
+
+  resetHistoryState();
+  resetRecommendationState();
+  resetSimulationState();
   
+  lastAutoFillHitCount = 0;
 
-DOM_LISTS.colorButtons.forEach(b=>{
-  b.classList.remove('selected','disabled');
-});
+  shownEasterEggs = new Set();
 
-DOM_LISTS.rareButtons.forEach(b=>{
-  b.classList.remove('active-btn');
-});
+  clearPlacementsCache();
+  clearRecommendations();
 
-document.getElementById('modeSafe')?.classList.remove('active-btn');
-document.getElementById('modeAggressive')?.classList.remove('active-btn');
+  updateTopInfoVisibility();
+
+  DOM_LISTS.colorButtons.forEach(b=>{
+    b.classList.remove('selected','disabled');
+  });
+
+  DOM_LISTS.rareButtons.forEach(b=>{
+    b.classList.remove('active-btn', 'disabled');
+  });
+
+  DOM.modeSafe?.classList.remove('active-btn');
+  DOM.modeAggressive?.classList.remove('active-btn');
 
   render();
-  const heat = DOM.heatmap;
-for(let i=0;i<25;i++){
-  heat[i].style.background = '';
-  heat[i].textContent = '';
-}
-
-setTextIfChanged(DOM.heatmapTitle, "Probability Heatmap");
-DOM.heatmapSubtitle.classList.remove('error');
-
-setTextIfChanged(DOM.heatmapSubtitle, "");
-
-heatmapPreviewActive = false;
-heatmapMode = "probability";
-lastHoveredTile = null;
-updateHeatmapToggle();
-
-  DOM.confidence.textContent = "";
-  DOM.modeLabel.textContent = "";
-currentMode = MODE.NORMAL;
-
-appState = createEmptyAppState();
-clearPlacementsCache();
-
-lastSpecialGroup = null;
-
-updateInfoBox();
-
+  resetHeatmapState();
+  updateInfoBox();
   updateBoardLock();
-
-clearRecommendations();
-
-lastProbs = null;
-lastTopMoves = null;
-moves = [];
-redoStack = [];
-
-configLocked = false;
-
-updateModeButtons();
-
-DOM_LISTS.rareButtons.forEach(b=>{
-  b.classList.remove('disabled');
-});
-
-lastAutoFillHitCount = 0;
-updateAutoHitsButton();
-targetRareShipsMode = false;
-showGambaHighlight = false;
-
-shownEasterEggs = new Set();
-pendingResolutionOpportunityClick = false;
-
-simulationMode = false;
-simulationBoard = null;
-simulationRevealed = Array(25).fill(false);
-document
-  .getElementById('simulationToggleBtn')
-  ?.classList.remove('active-btn');
-
-updateSimulationUI();
-renderSimulationBoard();
-
+  updateModeButtons();
+  updateAutoHitsButton();
+  updateSimulationUI();
+  renderSimulationBoard();
 }
 
 // ===============================
@@ -2753,6 +2748,51 @@ if (!hasValidPlacementsForAllShips()) {
 // ===============================
 // T.04A STATE / HISTORY / CACHE HELPERS
 // ===============================
+
+function resetRecommendationState() {
+  lastSpecialGroup = null;
+  lastProbs = null;
+  lastTopMoves = null;
+  lastGuaranteed = null;
+  targetRareShipsMode = false;
+  showGambaHighlight = false;
+  pendingResolutionOpportunityClick = false;
+}
+
+function resetHistoryState() {
+  history = [];
+  moves = [];
+  redoStack = [];
+}
+
+function resetSimulationState() {
+  simulationMode = false;
+  simulationBoard = null;
+  simulationRevealed = Array(25).fill(false);
+  DOM.simulationToggleBtn?.classList.remove('active-btn');
+}
+
+function resetHeatmapState() {
+  const heat = DOM.heatmap;
+
+  for (let i = 0; i < 25; i++) {
+    heat[i].style.background = '';
+    heat[i].textContent = '';
+  }
+
+  setTextIfChanged(DOM.heatmapTitle, "Probability Heatmap");
+  DOM.heatmapSubtitle.classList.remove('error');
+  setTextIfChanged(DOM.heatmapSubtitle, "");
+
+  heatmapPreviewActive = false;
+  heatmapMode = "probability";
+  lastHoveredTile = null;
+
+  DOM.confidence.textContent = "";
+  DOM.modeLabel.textContent = "";
+
+  updateHeatmapToggle();
+}
 
 function saveHistorySnapshot(snapshot = createHistorySnapshot()) {
   history.push(snapshot);
@@ -3195,7 +3235,7 @@ function hasAnyValidBoard(placementsMap = null){
   let board = Array(25).fill(null);
   const knownMissMask = getKnownMissMask();
 
-  function dfs(index, occupiedMask = 0){
+  function searchValidBoard(index, occupiedMask = 0){
     if(index === ships.length){
       return isBoardValid(board, true);
     }
@@ -3213,7 +3253,7 @@ for (const i of cells) {
   board[i] = ship;
 }
 
-if(dfs(index + 1, occupiedMask | placementMask)) return true;
+if(searchValidBoard(index + 1, occupiedMask | placementMask)) return true;
 
 for (const i of cells) {
   board[i] = null;
@@ -3223,7 +3263,7 @@ for (const i of cells) {
     return false;
   }
 
-  return dfs(0);
+  return searchValidBoard(0);
 }
 
 // ===============================
@@ -3537,7 +3577,7 @@ function chooseRareCombinations(items, count) {
 
   const result = [];
 
-  function dfs(start, combo) {
+  function buildRareCombinations(start, combo) {
     if (combo.length === count) {
       result.push([...combo]);
       return;
@@ -3545,12 +3585,12 @@ function chooseRareCombinations(items, count) {
 
     for (let i = start; i < items.length; i++) {
       combo.push(items[i]);
-      dfs(i + 1, combo);
+      buildRareCombinations(i + 1, combo);
       combo.pop();
     }
   }
 
-  dfs(0, []);
+  buildRareCombinations(0, []);
   return result;
 }
 
@@ -4447,7 +4487,7 @@ for (const color in shipMasks) {
 }
   }
 
-  function dfs(
+  function enumerateBoardsDFS(
     index,
     occupiedMask,
     hitMask,
@@ -4486,7 +4526,7 @@ for (const color in shipMasks) {
         ? placementKey(placement)
         : lastRarePlacementKey;
 
-      dfs(
+      enumerateBoardsDFS(
         index + 1,
         occupiedMask | placementMask,
         hitMask | placementMask,
@@ -4502,7 +4542,7 @@ for (const color in shipMasks) {
     }
   }
 
-  dfs(0, 0, 0, {});
+  enumerateBoardsDFS(0, 0, 0, {});
 
   return {
   counts,
@@ -5405,7 +5445,7 @@ function dfsStateKey(
   const board = Array(25).fill(null);
   const knownMissMask = getKnownMissMask();
 
-function dfs(
+function enumeratePrunedBoardsDFS(
   remainingShips,
   occupiedMask = 0,
   lastRarePlacementKey = -1,
@@ -5478,7 +5518,7 @@ for (const placement of choice.legalPlacements) {
 
   shipMasks[ship] = prevShipMask | placementMask;
 
-  dfs(
+  enumeratePrunedBoardsDFS(
     remainingShips,
     occupiedMask | placementMask,
     isAnonymousRare ? keyForPlacement : lastRarePlacementKey,
@@ -5504,7 +5544,7 @@ if (valid === validBefore) {
 
   }
 
-  dfs([...ships]);
+  enumeratePrunedBoardsDFS([...ships]);
 
   return { counts, valid, allBoards };
 }
@@ -7054,7 +7094,10 @@ function shouldSuppressEquivalenceMode(data) {
     }
   }
 
-  if (equivalenceModeStrictness === "strictEVAndCollapse") {
+  if (
+  equivalenceModeStrictness === "strictCollapse" ||
+  equivalenceModeStrictness === "strictEVAndCollapse"
+) {
     const getCollapseScore =
       makeCollapseScoreGetter(data.allBoards, data.probs);
 
@@ -7192,9 +7235,17 @@ function getBestResolutionOpportunityMove(allBoards, probs) {
     }
   }
 
-  const candidates = forcedCandidates.length
-    ? forcedCandidates
-    : finalDecisionCandidates;
+    let candidates = [];
+
+  if (resolutionOpportunityStyle === "forcedResolution") {
+    candidates = forcedCandidates;
+  } else if (resolutionOpportunityStyle === "finalDecision") {
+    candidates = finalDecisionCandidates;
+  } else {
+    candidates = forcedCandidates.length
+      ? forcedCandidates
+      : finalDecisionCandidates;
+  }
 
   if (!candidates.length) return null;
 
@@ -7364,7 +7415,8 @@ const safetyPart = [
   safeAggressiveAvoidHighProb ? 1 : 0,
   preMegTiebreakersEnabled ? 1 : 0,
   PRE_MEG_TIEBREAKER_EXPORT_ORDER.indexOf(preMegTiebreakerMode),
-  Math.round(safeAggressiveAvoidHighProbThreshold * 100)
+  Math.round(safeAggressiveAvoidHighProbThreshold * 100),
+  RESOLUTION_OPPORTUNITY_STYLE_EXPORT_ORDER.indexOf(resolutionOpportunityStyle)
 ].join(",");
 
 const presetPart = [
@@ -7438,12 +7490,18 @@ function loadAdvancedSettingsCodePayload(code) {
 
 preMegTiebreakerMode =
   safety.length < 6
-    ? "worstOutcomeBoards"
+    ? "avoidMissEndsGame"
     : PRE_MEG_TIEBREAKER_EXPORT_ORDER[safety[5]] ||
-      "worstOutcomeBoards";
+      "avoidMissEndsGame";
 	  
 	  safeAggressiveAvoidHighProbThreshold =
   safety.length < 7 ? 0.90 : safety[6] / 100;
+  
+  resolutionOpportunityStyle =
+  safety.length < 8
+    ? "any"
+    : RESOLUTION_OPPORTUNITY_STYLE_EXPORT_ORDER[safety[7]] ||
+      "any";
 
     const presets = presetPart.split(",").map(Number);
 
@@ -9507,6 +9565,44 @@ function getAutoFillForcedHits() {
   return hits;
 }
 
+function selectedAttr(current, value) {
+  return current === value ? "selected" : "";
+}
+
+function renderOption(value, label, current) {
+  return `<option value="${value}" ${selectedAttr(current, value)}>${label}</option>`;
+}
+
+function renderSettingRow(controlHtml, descriptionHtml) {
+  return `
+    <div class="advanced-setting-row">
+      <div class="advanced-setting-control">
+        ${controlHtml}
+      </div>
+
+      <div class="advanced-setting-description">
+        ${descriptionHtml}
+      </div>
+    </div>
+  `;
+}
+
+function renderCollapsibleAdvancedSection(title, expanded, toggleFn, bodyHtml) {
+  return `
+    <div class="tie-breaker-class">
+      <div
+        class="tie-breaker-class-title"
+        style="cursor:pointer;"
+        onclick="${toggleFn}()"
+      >
+        ${expanded ? "▼" : "▶"} ${title}
+      </div>
+
+      ${expanded ? bodyHtml : ""}
+    </div>
+  `;
+}
+
 function renderAdvancedRareTargetingSettings() {
   return `
     <div class="tie-breaker-class">
@@ -9514,96 +9610,75 @@ function renderAdvancedRareTargetingSettings() {
         Rare Ship Targeting
       </div>
 
-      <div class="advanced-setting-row">
-        <div class="advanced-setting-control">
+      ${renderSettingRow(
+        `
           <select
             id="rareTargetingAggressivenessSelect"
             onchange="setRareTargetingAggressiveness(this.value)"
           >
-            <option value="conservative" ${rareTargetingAggressiveness === "conservative" ? "selected" : ""}>0.25%</option>
-            <option value="default" ${rareTargetingAggressiveness === "default" ? "selected" : ""}>0.5%</option>
-            <option value="aggressive" ${rareTargetingAggressiveness === "aggressive" ? "selected" : ""}>1%</option>
+            ${renderOption("conservative", "0.25%", rareTargetingAggressiveness)}
+            ${renderOption("default", "0.5%", rareTargetingAggressiveness)}
+            ${renderOption("aggressive", "1%", rareTargetingAggressiveness)}
           </select>
-        </div>
-
-        <div class="advanced-setting-description">
-          Controls how close a tile must be to the best rare-ship chance before rare-targeting tie breakers compare it.
-        </div>
-      </div>
+        `,
+        "Controls how close a tile must be to the best rare-ship chance before rare-targeting tie breakers compare it."
+      )}
     </div>
   `;
 }
 
 function renderAdvancedStrategicSettings() {
-  return `
-    <div class="tie-breaker-class">
-      <div
-        class="tie-breaker-class-title"
-        style="cursor:pointer;"
-        onclick="toggleAdvancedStrategicSettings()"
-      >
-        ${advancedStrategicSettingsExpanded ? "▼" : "▶"} Strategic Scoring
-      </div>
+  const body = `
+    ${renderSettingRow(
+      `
+        <select
+          id="strategicScorePresetSelect"
+          onchange="setStrategicScorePreset(this.value)"
+        >
+          ${renderOption("default", "Default", strategicScorePreset)}
+          ${renderOption("reductionHeavy", "Board Reduction", strategicScorePreset)}
+          ${renderOption("shipDiscovery", "Ship Discovery", strategicScorePreset)}
+          ${renderOption("hitFocused", "Hit Focused", strategicScorePreset)}
+        </select>
+      `,
+      "Changes the weighted score used before Best Strategic Move tie breakers."
+    )}
 
-      ${
-        !advancedStrategicSettingsExpanded
-          ? ""
-          : `
-            <div class="advanced-setting-row">
-              <div class="advanced-setting-control">
-                <select
-                  id="strategicScorePresetSelect"
-                  onchange="setStrategicScorePreset(this.value)"
-                >
-                  <option value="default" ${strategicScorePreset === "default" ? "selected" : ""}>Default</option>
-                  <option value="reductionHeavy" ${strategicScorePreset === "reductionHeavy" ? "selected" : ""}>Board Reduction</option>
-                  <option value="shipDiscovery" ${strategicScorePreset === "shipDiscovery" ? "selected" : ""}>Ship Discovery</option>
-                  <option value="hitFocused" ${strategicScorePreset === "hitFocused" ? "selected" : ""}>Hit Focused</option>
-                </select>
-              </div>
+    ${renderSettingRow(
+      `
+        <select
+          id="overlapPreferenceSelect"
+          onchange="setOverlapPreference(this.value)"
+        >
+          ${renderOption("default", "Overlap: Default", overlapPreference)}
+          ${renderOption("moderate", "Overlap: Moderate", overlapPreference)}
+          ${renderOption("strong", "Overlap: Strong", overlapPreference)}
+        </select>
+      `,
+      "Adds preference for tiles that overlap more possible ship placements. Default adds no extra weight. Little effect in the early game due to data noise."
+    )}
 
-              <div class="advanced-setting-description">
-                Changes the weighted score used before Best Strategic Move tie breakers.
-              </div>
-            </div>
-
-            <div class="advanced-setting-row">
-              <div class="advanced-setting-control">
-                <select
-                  id="overlapPreferenceSelect"
-                  onchange="setOverlapPreference(this.value)"
-                >
-                  <option value="default" ${overlapPreference === "default" ? "selected" : ""}>Overlap: Default</option>
-                  <option value="moderate" ${overlapPreference === "moderate" ? "selected" : ""}>Overlap: Moderate</option>
-                  <option value="strong" ${overlapPreference === "strong" ? "selected" : ""}>Overlap: Strong</option>
-                </select>
-              </div>
-
-              <div class="advanced-setting-description">
-                Adds preference for tiles that overlap more possible ship placements. Default adds no extra weight. Little effect in the early game due to data noise.
-              </div>
-            </div>
-
-            <div class="advanced-setting-row">
-              <div class="advanced-setting-control">
-                <select
-                  id="evPreferenceSelect"
-                  onchange="setEVPreference(this.value)"
-                >
-                  <option value="default" ${evPreference === "default" ? "selected" : ""}>EV: Default</option>
-                  <option value="moderate" ${evPreference === "moderate" ? "selected" : ""}>EV: Moderate</option>
-                  <option value="strong" ${evPreference === "strong" ? "selected" : ""}>EV: Strong</option>
-                </select>
-              </div>
-
-              <div class="advanced-setting-description">
-                Adds preference for higher expected value during strategic scoring. Default adds no extra weight. Little effect in the early game due to data noise.
-              </div>
-            </div>
-          `
-      }
-    </div>
+    ${renderSettingRow(
+      `
+        <select
+          id="evPreferenceSelect"
+          onchange="setEVPreference(this.value)"
+        >
+          ${renderOption("default", "EV: Default", evPreference)}
+          ${renderOption("moderate", "EV: Moderate", evPreference)}
+          ${renderOption("strong", "EV: Strong", evPreference)}
+        </select>
+      `,
+      "Adds preference for higher expected value during strategic scoring. Default adds no extra weight. Little effect in the early game due to data noise."
+    )}
   `;
+
+  return renderCollapsibleAdvancedSection(
+    "Strategic Scoring",
+    advancedStrategicSettingsExpanded,
+    "toggleAdvancedStrategicSettings",
+    body
+  );
 }
 
 function renderAdvancedSafetySettings() {
@@ -9612,175 +9687,147 @@ function renderAdvancedSafetySettings() {
     Math.round(resolutionOpportunityThreshold * 100)
   );
 
-  return `
-    <div class="tie-breaker-class">
-      <div
-        class="tie-breaker-class-title"
-        style="cursor:pointer;"
-        onclick="toggleAdvancedSafetySettings()"
-      >
-        ${advancedSafetySettingsExpanded ? "▼" : "▶"} Safety Settings
-      </div>
+  const body = `
+    ${renderSettingRow(
+      `
+        <select
+          id="resolutionOpportunityThresholdSelect"
+          onchange="setResolutionOpportunityThreshold(Number(this.value))"
+        >
+          ${renderOption("5", "Resolution Opportunity: 5%", resolutionValue)}
+          ${renderOption("10", "Resolution Opportunity: 10%", resolutionValue)}
+          ${renderOption("15", "Resolution Opportunity: 15%", resolutionValue)}
+          ${renderOption("20", "Resolution Opportunity: 20%", resolutionValue)}
+        </select>
+      `,
+      "Minimum chance required before the Resolution Opportunity card appears."
+    )}
+	
+	    ${renderSettingRow(
+      `
+        <select
+          id="resolutionOpportunityStyleSelect"
+          onchange="setResolutionOpportunityStyle(this.value)"
+        >
+          ${renderOption("any", "Any resolving outcome", resolutionOpportunityStyle)}
+          ${renderOption("forcedResolution", "Forced Resolution only", resolutionOpportunityStyle)}
+          ${renderOption("finalDecision", "Final Decision only", resolutionOpportunityStyle)}
+        </select>
+      `,
+      "Controls which kind of resolving branch can trigger the Resolution Opportunity card."
+    )}
 
-      ${
-        !advancedSafetySettingsExpanded
-          ? ""
-          : `
-            <div class="advanced-setting-row">
-              <div class="advanced-setting-control">
-                <select
-                  id="resolutionOpportunityThresholdSelect"
-                  onchange="setResolutionOpportunityThreshold(Number(this.value))"
-                >
-                  <option value="5" ${resolutionValue === "5" ? "selected" : ""}>Resolution Opportunity: 5%</option>
-                  <option value="10" ${resolutionValue === "10" ? "selected" : ""}>Resolution Opportunity: 10%</option>
-                  <option value="15" ${resolutionValue === "15" ? "selected" : ""}>Resolution Opportunity: 15%</option>
-                  <option value="20" ${resolutionValue === "20" ? "selected" : ""}>Resolution Opportunity: 20%</option>
-                </select>
-              </div>
+    ${renderSettingRow(
+      `
+        <select
+          id="equivalenceModeStrictnessSelect"
+          onchange="setEquivalenceModeStrictness(this.value)"
+        >
+          ${renderOption("default", "Identical Probabilities", equivalenceModeStrictness)}
+          ${renderOption("strictEV", "Same EV", equivalenceModeStrictness)}
+          ${renderOption("strictCollapse", "Same reduction", equivalenceModeStrictness)}
+          ${renderOption("strictEVAndCollapse", "Same reduction AND same EV", equivalenceModeStrictness)}
+        </select>
+      `,
+      "Controls when Equivalence Mode is allowed to override normal recommendations."
+    )}
 
-              <div class="advanced-setting-description">
-                Minimum chance required before the Resolution Opportunity card appears.
-              </div>
-            </div>
+    ${renderSettingRow(
+      `
+        <select
+          id="safeRiskBandSelect"
+          onchange="setSafeRiskBand(Number(this.value))"
+        >
+          ${renderOption("1", "Risk Band: 1%", riskValue)}
+          ${renderOption("2", "Risk Band: 2%", riskValue)}
+          ${renderOption("3", "Risk Band: 3%", riskValue)}
+          ${renderOption("4", "Risk Band: 4%", riskValue)}
+          ${renderOption("5", "Risk Band: 5%", riskValue)}
+        </select>
+      `,
+      "Controls how many near-equivalent safe candidates stay eligible before tie breakers are applied."
+    )}
 
-            <div class="advanced-setting-row">
-              <div class="advanced-setting-control">
-                <select
-                  id="equivalenceModeStrictnessSelect"
-                  onchange="setEquivalenceModeStrictness(this.value)"
-                >
-                  <option value="default" ${equivalenceModeStrictness === "default" ? "selected" : ""}>Identical Probabilities</option>
-                  <option value="strictEV" ${equivalenceModeStrictness === "strictEV" ? "selected" : ""}>Same EV</option>
-                  <option value="strictEVAndCollapse" ${equivalenceModeStrictness === "strictEVAndCollapse" ? "selected" : ""}>Same reduction AND same EV</option>
-                </select>
-              </div>
+    ${renderSettingRow(
+      `
+        <div style="display:flex; flex-direction:column; gap:6px; align-items:flex-start;">
+          <button
+            id="preMegTiebreakersToggle"
+            class="${preMegTiebreakersEnabled ? "active-btn" : ""}"
+            onclick="togglePreMegTiebreakers(this)"
+          >
+            Pre-MEG Tiebreaker 🦈
+          </button>
 
-              <div class="advanced-setting-description">
-                Controls when Equivalence Mode is allowed to override normal recommendations.
-              </div>
-            </div>
+          <select
+            id="preMegTiebreakerModeSelect"
+            style="max-width: 210px;"
+            onchange="setPreMegTiebreakerMode(this.value)"
+            ${preMegTiebreakersEnabled ? "" : "disabled"}
+          >
+            ${renderOption("worstOutcomeBoards", "Worst Outcome: Board Count", preMegTiebreakerMode)}
+            ${renderOption("missEndsGameForcedTiles", "MEG Branch: Guaranteed Tiles", preMegTiebreakerMode)}
+            ${renderOption("avoidMissEndsGame", "Lowest MEG Chance", preMegTiebreakerMode)}
+            ${renderOption("missEndsGameForcedEV", "MEG Branch: Guaranteed EV", preMegTiebreakerMode)}
+          </select>
+        </div>
+      `,
+      "If a move could cause the next Miss to End the Game (MEG), apply a top-priority Best Safe Move tiebreaker. Can be toggled off. Apply whichever of the options you like."
+    )}
 
-            <div class="advanced-setting-row">
-              <div class="advanced-setting-control">
-                <select
-                  id="safeRiskBandSelect"
-                  onchange="setSafeRiskBand(Number(this.value))"
-                >
-                  <option value="1" ${riskValue === "1" ? "selected" : ""}>Risk Band: 1%</option>
-                  <option value="2" ${riskValue === "2" ? "selected" : ""}>Risk Band: 2%</option>
-                  <option value="3" ${riskValue === "3" ? "selected" : ""}>Risk Band: 3%</option>
-                  <option value="4" ${riskValue === "4" ? "selected" : ""}>Risk Band: 4%</option>
-                  <option value="5" ${riskValue === "5" ? "selected" : ""}>Risk Band: 5%</option>
-                </select>
-              </div>
+    ${renderSettingRow(
+      `
+        <button
+          id="safeAvoidAdjacentKnownToggle"
+          class="${safeAvoidAdjacentKnown ? "active-btn" : ""}"
+          onclick="toggleSafeAvoidAdjacentKnown(this)"
+        >
+          Avoid adjacency
+        </button>
+      `,
+      "Avoids candidates that could connect to an already-known ship when another valid option exists. Safe mode tends to do this naturally."
+    )}
 
-              <div class="advanced-setting-description">
-                Controls how many near-equivalent safe candidates stay eligible before tie breakers are applied.
-              </div>
-            </div>
-			
-			<div class="advanced-setting-row">
-  <div class="advanced-setting-control">
-    <div style="display:flex; flex-direction:column; gap:6px; align-items:flex-start;">
-      <button
-        id="preMegTiebreakersToggle"
-        class="${preMegTiebreakersEnabled ? "active-btn" : ""}"
-        onclick="togglePreMegTiebreakers(this)"
-      >
-        Pre-MEG Tiebreaker 🦈
-      </button>
+    ${renderSettingRow(
+      `
+        <div style="display:flex; flex-direction:column; gap:6px; align-items:flex-start;">
+          <button
+            id="safeAggressiveAvoidHighProbToggle"
+            class="${safeAggressiveAvoidHighProb ? "active-btn" : ""}"
+            onclick="toggleSafeAggressiveAvoidHighProb(this)"
+          >
+            Avoid High-Probability Tiles
+          </button>
 
-      <select
-        id="preMegTiebreakerModeSelect"
-        style="max-width: 210px;"
-        onchange="setPreMegTiebreakerMode(this.value)"
-      >
-        <option value="worstOutcomeBoards" ${preMegTiebreakerMode === "worstOutcomeBoards" ? "selected" : ""}>
-          Worst Outcome: Board Count
-        </option>
-        <option value="missEndsGameForcedTiles" ${preMegTiebreakerMode === "missEndsGameForcedTiles" ? "selected" : ""}>
-          MEG Branch: Guaranteed Tiles
-        </option>
-		<option value="avoidMissEndsGame" ${preMegTiebreakerMode === "avoidMissEndsGame" ? "selected" : ""}>
-		Lowest MEG Chance
-		</option>
-		<option value="missEndsGameForcedEV" ${preMegTiebreakerMode === "missEndsGameForcedEV" ? "selected" : ""}>
-		MEG Branch: Guaranteed EV
-		</option>
-      </select>
-    </div>
-  </div>
-
-  <div class="advanced-setting-description">
-    If a move could cause the next Miss to End the Game (MEG), apply a top-priority Best Safe Move tiebreaker. Can be toggled off. Apply whichever of the options you like.
-  </div>
-</div>
-
-            <div class="advanced-setting-row">
-              <div class="advanced-setting-control">
-                <button
-                  id="safeAvoidAdjacentKnownToggle"
-                  class="${safeAvoidAdjacentKnown ? "active-btn" : ""}"
-                  onclick="toggleSafeAvoidAdjacentKnown(this)"
-                >
-                  Avoid adjacency
-                </button>
-              </div>
-
-              <div class="advanced-setting-description">
-                Avoids candidates that could connect to an already-known ship when another valid option exists. Safe mode tends to do this naturally.
-              </div>
-            </div>
-
-            <div class="advanced-setting-row">
-              <div class="advanced-setting-control">
-                <div style="display:flex; flex-direction:column; gap:6px; align-items:flex-start;">
-                  <button
-                    id="safeAggressiveAvoidHighProbToggle"
-                    class="${safeAggressiveAvoidHighProb ? "active-btn" : ""}"
-                    onclick="toggleSafeAggressiveAvoidHighProb(this)"
-                  >
-                    Avoid High-Probability Tiles
-                  </button>
-
-                  <select
-                    id="safeAggressiveAvoidHighProbThresholdSelect"
-                    style="max-width: 210px;"
-                    onchange="setSafeAggressiveAvoidHighProbThreshold(Number(this.value))"
-                    ${safeAggressiveAvoidHighProb ? "" : "disabled"}
-                  >
-                    <option value="80" ${safeAggressiveAvoidHighProbThreshold === 0.80 ? "selected" : ""}>
-                      Avoid &gt;80%
-                    </option>
-                    <option value="85" ${safeAggressiveAvoidHighProbThreshold === 0.85 ? "selected" : ""}>
-                      Avoid &gt;85%
-                    </option>
-                    <option value="90" ${safeAggressiveAvoidHighProbThreshold === 0.90 ? "selected" : ""}>
-                      Avoid &gt;90%
-                    </option>
-                    <option value="95" ${safeAggressiveAvoidHighProbThreshold === 0.95 ? "selected" : ""}>
-                      Avoid &gt;95%
-                    </option>
-                  </select>
-                </div>
-              </div>
-
-              <div class="advanced-setting-description">
-                
-				In Aggressive mode, avoids very high-probability hit tiles when a miss does not end the game. 
-              </div>
-            </div>
-          `
-      }
-    </div>
+          <select
+            id="safeAggressiveAvoidHighProbThresholdSelect"
+            style="max-width: 210px;"
+            onchange="setSafeAggressiveAvoidHighProbThreshold(Number(this.value))"
+            ${safeAggressiveAvoidHighProb ? "" : "disabled"}
+          >
+            ${renderOption("80", "Avoid &gt;80%", String(Math.round(safeAggressiveAvoidHighProbThreshold * 100)))}
+            ${renderOption("85", "Avoid &gt;85%", String(Math.round(safeAggressiveAvoidHighProbThreshold * 100)))}
+            ${renderOption("90", "Avoid &gt;90%", String(Math.round(safeAggressiveAvoidHighProbThreshold * 100)))}
+            ${renderOption("95", "Avoid &gt;95%", String(Math.round(safeAggressiveAvoidHighProbThreshold * 100)))}
+          </select>
+        </div>
+      `,
+      "In Aggressive mode, avoids very high-probability hit tiles when a miss does not end the game. "
+    )}
   `;
+
+  return renderCollapsibleAdvancedSection(
+    "Safety Settings",
+    advancedSafetySettingsExpanded,
+    "toggleAdvancedSafetySettings",
+    body
+  );
 }
 
 function renderAdvancedSettings() {
   updateTieBreakerNotice();
 
-  const root = document.getElementById("advancedSettingsContent");
+  const root = DOM.advancedSettingsContent;
   if (!root) return;
 
   root.innerHTML = `
@@ -9802,66 +9849,57 @@ ${renderAdvancedSafetySettings()}
 ${renderAdvancedStrategicSettings()}
 ${renderAdvancedRareTargetingSettings()}
 
-    <div class="tie-breaker-class">
-      <div
-        class="tie-breaker-class-title"
-        style="cursor:pointer;"
-        onclick="toggleAdvancedTieBreakers()"
-      >
-        ${advancedTieBreakersExpanded ? "▼" : "▶"} Tie Breaker Order
-      </div>
+    ${renderCollapsibleAdvancedSection(
+  "Tie Breaker Order",
+  advancedTieBreakersExpanded,
+  "toggleAdvancedTieBreakers",
+  [
+    renderTieBreakerClass(
+      "rareShipTargeting",
+      "Rare Ship Targeting"
+    ),
 
-      ${
-        !advancedTieBreakersExpanded
-          ? ""
-          : [
-              renderTieBreakerClass(
-                "rareShipTargeting",
-                "Rare Ship Targeting"
-              ),
+    renderTieBreakerClass(
+      "forcedResolution",
+      "Forced Resolution"
+    ),
 
-              renderTieBreakerClass(
-                "forcedResolution",
-                "Forced Resolution"
-              ),
+    renderTieBreakerClass(
+      "finalDecisionSetup",
+      "Final Decision Setup"
+    ),
 
-              renderTieBreakerClass(
-                "finalDecisionSetup",
-                "Final Decision Setup"
-              ),
+    renderTieBreakerClass(
+      "resolutionOpportunity",
+      "Resolution Opportunity"
+    ),
 
-              renderTieBreakerClass(
-                "resolutionOpportunity",
-                "Resolution Opportunity"
-              ),
+    renderTieBreakerClass(
+      "futureCollapse",
+      "Future / 2-Step Collapse"
+    ),
 
-              renderTieBreakerClass(
-                "futureCollapse",
-                "Future / 2-Step Collapse"
-              ),
+    renderTieBreakerClass(
+      "progressMove",
+      "Safe Mode Clarity / Progress Move"
+    ),
 
-              renderTieBreakerClass(
-                "progressMove",
-                "Safe Mode Clarity / Progress Move"
-              ),
+    renderTieBreakerClass(
+      "bestSafeAggressive",
+      "Best Safe Move"
+    ),
 
-              renderTieBreakerClass(
-                "bestSafeAggressive",
-                "Best Safe Move"
-              ),
+    renderTieBreakerClass(
+      "strategicAggressive",
+      "Best Strategic Move — Aggressive"
+    ),
 
-              renderTieBreakerClass(
-                "strategicAggressive",
-                "Best Strategic Move — Aggressive"
-              ),
-
-              renderTieBreakerClass(
-                "strategicSafe",
-                "Best Strategic Move — Safe"
-              )
-            ].join("")
-      }
-    </div>
+    renderTieBreakerClass(
+      "strategicSafe",
+      "Best Strategic Move — Safe"
+    )
+  ].join("")
+)}
   `;
 
   updateSafetySettingButtons();
@@ -10753,11 +10791,30 @@ function maybeShowEasterEgg(key, text) {
   return `<br><br><i>${text}</i>`;
 }
 
+function formatMoveCoord(i, color = null) {
+  const [r, c] = indexToCoord(i);
+  const text = `Row ${r + 1}, Col ${c + 1}`;
+
+  return color
+    ? `<span style="color:${color}; font-weight:bold">${text}</span>`
+    : `<b>${text}</b>`;
+}
+
+function formatBlueChance(move) {
+  return `Blue chance: <b>${((1 - move.p) * 100).toFixed(1)}%</b>`;
+}
+
+function formatExpectedBoards(move) {
+  return `Expected boards after reveal: <b>${move.expectedRemaining.toFixed(1)}</b>`;
+}
+
+function formatBoardPlural(count) {
+  return `${count} board${count === 1 ? "" : "s"}`;
+}
+
 function appendFinalDecisionSetupCard(messages) {
   const move = appState.finalDecisionMove;
   if (!move || move.i === undefined) return false;
-
-  const [r, c] = indexToCoord(move.i);
 
 const introText =
   "Every possible outcome on this tile leads to Final Decision or better.";
@@ -10768,11 +10825,11 @@ const introText =
       `
         ${introText}
         <br><br>
-        <b>Row ${r + 1}, Col ${c + 1}</b>
-        <br>
-        Blue chance: <b>${((1 - move.p) * 100).toFixed(1)}%</b>
-        <br>
-        Expected boards after reveal: <b>${move.expectedRemaining.toFixed(1)}</b>
+       ${formatMoveCoord(move.i)}
+		<br>
+		${formatBlueChance(move)}
+		<br>
+		${formatExpectedBoards(move)}
         <br>
         Worst outcome: <b>${move.worstRemaining.toFixed(0)} boards</b>
         ${getTiebreakerText(move)}
@@ -10788,19 +10845,17 @@ function appendForcedResolutionCard(messages) {
   const move = appState.forcedResolutionMove;
   if (!move || move.i === undefined) return false;
 
-  const [r, c] = indexToCoord(move.i);
-
   messages.push(
     makeCard(
       "Forced Resolution",
       `
         This move solves the board no matter the outcome.
         <br><br>
-        <b>Row ${r + 1}, Col ${c + 1}</b>
-        <br>
-        Blue chance: <b>${((1 - move.p) * 100).toFixed(1)}%</b>
-        <br>
-        Expected boards after reveal: <b>${move.expectedRemaining.toFixed(1)}</b>
+        ${formatMoveCoord(move.i)}
+		<br>
+		${formatBlueChance(move)}
+		<br>
+		${formatExpectedBoards(move)}
 		${getTiebreakerText(move)}
 		${maybeShowEasterEgg("entropyLeft", "Entropy has left the chat.")}
       `,
@@ -10830,7 +10885,6 @@ function appendResolutionOpportunityCard(messages, context) {
       : "Final Decision";
 
 if (matchingRecommendation) {
-  const [r, c] = indexToCoord(move.i);
 
   messages.push(
     makeCard(
@@ -10840,7 +10894,7 @@ if (matchingRecommendation) {
         <br><br>
         <b>${matchingRecommendation}</b>
         <br>
-        <span style="color:#dc2626; font-weight:bold">Row ${r + 1}, Col ${c + 1}</span>
+        ${formatMoveCoord(move.i, "#dc2626")}
         <br>
         Chance: <b>${chanceText}</b>
       `,
@@ -10851,8 +10905,6 @@ if (matchingRecommendation) {
   return;
 }
 
-  const [r, c] = indexToCoord(move.i);
-
   messages.push(
     makeCard(
       "Resolution Opportunity",
@@ -10861,11 +10913,11 @@ if (matchingRecommendation) {
         <br><br>
         Consider:
         <br>
-        <b>Row ${r + 1}, Col ${c + 1}</b>
+        ${formatMoveCoord(move.i)}
         <br>
         Chance: <b>${chanceText}</b>
         <br>
-        Best resolving branch: <b>${move.bestOutcomeRemaining} board${move.bestOutcomeRemaining === 1 ? "" : "s"}</b>
+        Best resolving branch: <b>${formatBoardPlural(move.bestOutcomeRemaining)}</b>
         ${move.tiebreaker?.includes("(1 candidate)") ? "" : getTiebreakerText(move)}
       `,
       "info-red"
@@ -12808,42 +12860,18 @@ function renderHeatmapWithContext(probs, huntMode, mode, label) {
 function clearRecommendations(){
   const play = DOM.playBoard;
 
-  for(let c of play){
-    removeClassIfPresent(c, 'recommended-best');
-    removeClassIfPresent(c, 'recommended-second');
-    removeClassIfPresent(c, 'recommended-safe');
-	removeClassIfPresent(c, 'recommended-progress');
-	removeClassIfPresent(c, 'recommended-danger');
-    removeClassIfPresent(c, 'recommended-uncertainty');
-    removeClassIfPresent(c, 'recommended-avoid');
-    removeClassIfPresent(c, 'recommended-equal');
-    removeClassIfPresent(c, 'recommended-size2');
-	removeClassIfPresent(c, 'recommended-high-ev');
-    removeClassIfPresent(c, 'recommended-final');
-    removeClassIfPresent(c, 'stripe-overlay');
-    removeClassIfPresent(c, 'stripe-rainbow');
-	removeClassIfPresent(c, 'rainbow-highlight');
-	removeClassIfPresent(c, 'guaranteed-unknown');
-	removeClassIfPresent(c, 'recommended-gamba');
-	removeClassIfPresent(c, 'equivalence-placed-dim');
-	removeClassIfPresent(c, 'equivalence-stripe-dim');
-	removeClassIfPresent(c, 'equivalence-gamba-active');
+  for (const c of play) {
+    c.classList.remove(...RECOMMENDATION_CLASSES);
 
-c.style.removeProperty("--label-color");
+    c.style.removeProperty("--label-color");
+    c.style.removeProperty("--stripe-color");
 
-if (c.hasAttribute("data-label")) {
-  c.removeAttribute("data-label");
-}
+    c.removeAttribute("data-label");
 
-    const badge = c.querySelector('.size-badges');
-    if (badge) badge.remove();
+    c.querySelector('.size-badges')?.remove();
 
     if (c.textContent !== "") {
       c.textContent = "";
-    }
-
-    if (c.style.getPropertyValue('--stripe-color')) {
-      c.style.removeProperty('--stripe-color');
     }
   }
 }
@@ -13560,7 +13588,7 @@ function getTooltipColorForPlayTile(i) {
 function showColorTooltip(label, event) {
   if (!colorblindMode || !label) return;
 
-  const tooltip = document.getElementById('colorTooltip');
+  const tooltip = DOM.colorTooltip;
   if (!tooltip) return;
 
   tooltip.textContent = label;
@@ -13577,9 +13605,7 @@ tooltip.style.top = `${event.clientY - 36}px`;
 }
 
 function hideColorTooltip() {
-  document
-    .getElementById('colorTooltip')
-    ?.classList.remove('visible');
+DOM.colorTooltip?.classList.remove('visible');
 }
 
 // ===============================
@@ -14021,16 +14047,17 @@ function hasNonDefaultAdvancedSettings() {
     }
   }
 
-  return (
-  resolutionOpportunityThreshold !== 0.10 ||
-  equivalenceModeStrictness !== "default" ||
-  strategicScorePreset !== "default" ||
-  rareTargetingAggressiveness !== "default" ||
-  overlapPreference !== "default" ||
-  evPreference !== "default" ||
-  preMegTiebreakersEnabled !== true ||
-preMegTiebreakerMode !== "avoidMissEndsGame"
-);
+    return (
+    resolutionOpportunityThreshold !== 0.10 ||
+    resolutionOpportunityStyle !== "any" ||
+    equivalenceModeStrictness !== "default" ||
+    strategicScorePreset !== "default" ||
+    rareTargetingAggressiveness !== "default" ||
+    overlapPreference !== "default" ||
+    evPreference !== "default" ||
+    preMegTiebreakersEnabled !== true ||
+    preMegTiebreakerMode !== "avoidMissEndsGame"
+  );
 }
 
 function updateTieBreakerNotice() {
@@ -14243,6 +14270,13 @@ function getMovesForCurrentGrid(){
 // T.16 EVENT BINDS
 // ===============================
 
+window.setResolutionOpportunityStyle = function(value) {
+  resolutionOpportunityStyle = value;
+  updateTieBreakerNotice();
+
+  refreshRecommendationsForAdvancedSettingChange();
+};
+
 window.setSafeAggressiveAvoidHighProbThreshold = function(value) {
   safeAggressiveAvoidHighProbThreshold = value / 100;
 
@@ -14263,6 +14297,13 @@ window.togglePreMegTiebreakers = function(btn) {
   btn.classList.toggle(
     'active-btn',
     preMegTiebreakersEnabled
+  );
+  
+  document
+  .getElementById('preMegTiebreakerModeSelect')
+  ?.toggleAttribute(
+    'disabled',
+    !preMegTiebreakersEnabled
   );
 
   updateTieBreakerNotice();
@@ -14336,6 +14377,8 @@ window.resetAllAdvancedSettings = function() {
   );
 
   resolutionOpportunityThreshold = 0.10;
+  resolutionOpportunityStyle = "any";
+  
 
   equivalenceModeStrictness = "default";
   strategicScorePreset = "default";
@@ -14644,7 +14687,7 @@ window.setMode = function(mode, btn){
 };
 
 window.generateHash = function(){
-  const input = document.getElementById('hashInput');
+  const input = DOM.hashInput;
   input.value = encodeGame();
   input.select();
 };
@@ -14791,19 +14834,30 @@ function cacheDomLists(){
   DOM_LISTS.modeButtons = [...document.querySelectorAll('[onclick^="setMode"]')];
 }
 
-DOM.playBoard = document.getElementById('playBoard').children;
-DOM.heatmap = document.getElementById('heatmap').children;
-DOM.simulationBoard = document.getElementById('simulationBoard').children;
-DOM.simulationBoardContainer = document.getElementById('simulationBoardContainer');
-DOM.heatmapTitle = document.getElementById('heatmapTitle');
-DOM.heatmapSubtitle = document.getElementById('heatmapSubtitle');
-DOM.heatmapToggleBtn = null;
-DOM.heatmapModeButtons = document.getElementById('heatmapModeButtons');
-DOM.infoBox = document.getElementById('infoBox');
-DOM.topInfoBox = document.getElementById('topInfoBox');
-DOM.confidence = document.getElementById('confidence');
-DOM.modeLabel = document.getElementById('modeLabel');
+function cacheDomRefs() {
+  DOM.playBoard = document.getElementById('playBoard').children;
+  DOM.heatmap = document.getElementById('heatmap').children;
+  DOM.simulationBoard = document.getElementById('simulationBoard').children;
+  DOM.simulationBoardContainer = document.getElementById('simulationBoardContainer');
+  DOM.heatmapTitle = document.getElementById('heatmapTitle');
+  DOM.heatmapSubtitle = document.getElementById('heatmapSubtitle');
+  DOM.heatmapToggleBtn = null;
+  DOM.heatmapModeButtons = document.getElementById('heatmapModeButtons');
+  DOM.infoBox = document.getElementById('infoBox');
+  DOM.topInfoBox = document.getElementById('topInfoBox');
+  DOM.confidence = document.getElementById('confidence');
+  DOM.modeLabel = document.getElementById('modeLabel');
 
+  DOM.modeSafe = document.getElementById('modeSafe');
+  DOM.modeAggressive = document.getElementById('modeAggressive');
+  DOM.simulationToggleBtn = document.getElementById('simulationToggleBtn');
+  DOM.advancedSettingsContent = document.getElementById('advancedSettingsContent');
+  DOM.hashInput = document.getElementById('hashInput');
+  DOM.colorTooltip = document.getElementById('colorTooltip');
+  DOM.lastUpdatedBadgeText = document.querySelector('#lastUpdatedBadge span');
+}
+
+cacheDomRefs();
 cacheDomLists();
 
 bindColorblindTooltips();
