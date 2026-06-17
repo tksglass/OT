@@ -8976,11 +8976,22 @@ if (
 
     const possiblePlacements = getPlacementsCached(color);
 
-    const couldBeThisShip =
-  getTileColorProbability(index, color) > 0 &&
+    const placementCanIncludeKnownShip =
   possiblePlacements.some(placement =>
     placement.cells.includes(index) &&
     knownCells.every(i => placement.cells.includes(i))
+  );
+
+const hasFullExactColorSupport =
+  appState.solverInfo?.type === "exact" &&
+  appState.solverInfo?.countOnly !== true &&
+  !!appState.allBoards;
+
+const couldBeThisShip =
+  placementCanIncludeKnownShip &&
+  (
+    !hasFullExactColorSupport ||
+    getTileColorProbability(index, color) > 0
   );
 
     if (couldBeThisShip) {
@@ -14877,7 +14888,7 @@ updateLastUpdatedBadge();
 
 <div class="sharebar">
   <div class="section" style="width:100%;">
-    <span class="label">Share Code:</span>
+    <span class="label">Move History Code:</span>
 
     <input id="hashInput" placeholder="Paste or generate code">
 
