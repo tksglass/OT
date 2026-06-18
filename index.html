@@ -2514,6 +2514,7 @@ window.autoPlaceGuaranteedHits = function(){
   if (currentMode === MODE.GAME_OVER) return;
   if (rareCount === null) return;
   if (!appState.forcedTiles) return;
+  if (!isGuaranteedNonBlueRecommended()) return;
   
 const btn = document.getElementById('autoHitsBtn');
 btn?.classList.remove('pulse');
@@ -8035,7 +8036,7 @@ function appendKnownSafeBlueBeforeForcedHitsCard(messages, ctx) {
         <br>
         <b style="color:#22c55e">Row ${r + 1}, Col ${c + 1}</b>
         <br><br>
-        Then fill the guaranteed hits.
+        Or any other guaranteed blue tile (blue stripes).
       `,
       "info-green"
     )
@@ -10185,20 +10186,36 @@ function getTiebreakerText(move) {
   return `<br><br><b>Tiebreaker Used:</b> ${move.tiebreaker}${passedText}`;
 }
 
+function isGuaranteedNonBlueRecommended() {
+  const move = appState.topMoves?.[0];
+
+  return (
+    appState.isGuaranteed &&
+    move &&
+    grid[move.i] === null &&
+    move.p === 1
+  );
+}
+
 function updateAutoHitsButton() {
   const btn = document.getElementById('autoHitsBtn');
   if (!btn) return;
 
-  const count = getAutoFillForcedHits().length;
+  const forcedHits = getAutoFillForcedHits();
+  const count = forcedHits.length;
 
-  btn.disabled = count === 0;
-  btn.textContent = count > 0 ? `Fill Hits (${count})` : 'Fill Hits';
+  const canFill =
+    count > 0 &&
+    isGuaranteedNonBlueRecommended();
 
-  const hasNewForcedHits = count > lastAutoFillHitCount;
+  btn.disabled = !canFill;
+  btn.textContent = canFill ? `Fill Hits (${count})` : 'Fill Hits';
 
-  btn.classList.toggle('pulse', hasNewForcedHits && count > 0);
+  const hasNewForcedHits = canFill && count > lastAutoFillHitCount;
 
-  lastAutoFillHitCount = count;
+  btn.classList.toggle('pulse', hasNewForcedHits);
+
+  lastAutoFillHitCount = canFill ? count : 0;
 }
 
 function updateTopInfoVisibility(){
@@ -10427,7 +10444,11 @@ function renderClarityMoveHighlight() {
 }
 
 function renderDangerRecommendationHighlight() {
-  if (appState.safeOverride || appState.isGuaranteed) return;
+  if (
+    appState.safeOverride ||
+    appState.isGuaranteed ||
+    appState.specialGroup
+  ) return;
 
   const context = getInfoContext();
 
