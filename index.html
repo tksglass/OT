@@ -1811,13 +1811,6 @@ const EV_PREFERENCE_PRESETS = {
   strong: 3.00
 };
 
-const PRE_MEG_TIEBREAKER_EXPORT_ORDER = [
-  "worstOutcomeBoards",
-  "missEndsGameForcedTiles",
-  "avoidMissEndsGame",
-  "missEndsGameForcedEV"
-];
-
 const DEFAULT_TIEBREAKER_CONFIG = {
   finalDecisionSetup: [
     "riskAdjustedRemaining",
@@ -1880,12 +1873,20 @@ const DEFAULT_TIEBREAKER_CONFIG = {
     "strategicUndiscoveredSize2",
     "strategicHitChance",
     "weightedEV"
+  ],
+  
+  preMeg: [
+  "avoidMissEndsGame",
+  "missEndsGameForcedEV",
+  "missEndsGameForcedTiles",
+  "worstOutcomeBoards"
   ]
   
   
 };
 
 let tieBreakerConfig = loadTieBreakerConfig();
+let tieBreakerEnabled = loadTieBreakerEnabled();
 
 const TIEBREAKER_DEFINITIONS = {
   riskAdjustedRemaining: {
@@ -1946,11 +1947,34 @@ modeHitChance: {
   higherIsBetter: c => c.huntMode
 },
 
+avoidMissEndsGame: {
+  label: "Lowest chance to enter miss-ends-game",
+  getValue: c => c.missEndsGameChance,
+  higherIsBetter: false
+},
+
+missEndsGameForcedEV: {
+  label: "More guaranteed EV on worst miss-ends-game branch",
+  getValue: c => c.entersMissEndsGame
+    ? c.missEndsGameForcedEV || 0
+    : -Infinity,
+  higherIsBetter: true
+},
+
 missEndsGameForcedTiles: {
-  label: "More guaranteed tiles on worst outcome branch if miss-ends-game would activate",
-  getValue: c => c.missEndsGameForcedTiles || 0,
-  higherIsBetter: true,
-  shouldSkip: () => true
+  label: "More guaranteed tiles on worst miss-ends-game branch",
+  getValue: c => c.entersMissEndsGame
+    ? c.missEndsGameForcedTiles || 0
+    : -Infinity,
+  higherIsBetter: true
+},
+
+worstOutcomeBoards: {
+  label: "Lowest board count on worst miss-ends-game branch",
+  getValue: c => c.entersMissEndsGame
+    ? c.worstOutcomeBoardCount
+    : Infinity,
+  higherIsBetter: false
 },
 
 undiscoveredSize4: {
@@ -2020,9 +2044,9 @@ strategicBoardReduction: {
 },
 
 strategicHitChance: {
-  label: "Higher hit chance among candidates",
+  label: "Mode objective (hit chance in Aggressive, miss chance in Safe)",
   getValue: c => c.p,
-  higherIsBetter: true
+  higherIsBetter: c => c.huntMode
 },
 
 rareTargetHitChance: {
@@ -2053,7 +2077,8 @@ const SETTINGS_EXPORT_ORDER = [
   "progressMove",
   "bestSafeAggressive",
   "strategicAggressive",
-  "strategicSafe"
+  "strategicSafe",
+  "preMeg"
 ];
 
 const EQUIVALENCE_EXPORT_ORDER = [
@@ -2116,7 +2141,10 @@ const TIEBREAKER_EXPORT_IDS = {
   strategicBoardReduction: 18,
   strategicHitChance: 19,
   safeWeightedEV: 20,
-  missEndsGameForcedTiles: 21
+  missEndsGameForcedTiles: 21,
+  worstOutcomeBoards: 22,
+  avoidMissEndsGame: 23,
+  missEndsGameForcedEV: 24
 };
 
 const FULL_EXACT_BOARD_STORE_LIMIT = 120000;
@@ -2218,7 +2246,6 @@ const RAW_PLACEMENTS = {
 // ===============================
 
 let preMegTiebreakersEnabled = true;
-let preMegTiebreakerMode = "avoidMissEndsGame";
 
 let staggerBoardMode = 0;
 
@@ -2282,7 +2309,7 @@ let showGambaHighlight = false;
 let safeRiskBand = 0.05;
 let resolutionOpportunityThreshold = 0.10;
 let resolutionOpportunityStyle = "any";
-let equivalenceModeStrictness = "default";
+let equivalenceModeStrictness = "strictEVAndCollapse";
 let strategicScorePreset = "default";
 let rareTargetingAggressiveness = "default";
 let overlapPreference = "default";
@@ -2317,7 +2344,8 @@ let expandedTieBreakerSections = {
   progressMove: false,
   bestSafeAggressive: false,
   strategicAggressive: false,
-  strategicSafe: false
+  strategicSafe: false,
+  preMeg: false
 };
 
 // ===============================
@@ -7415,7 +7443,6 @@ const safetyPart = [
   safeAvoidAdjacentKnown ? 1 : 0,
   safeAggressiveAvoidHighProb ? 1 : 0,
   preMegTiebreakersEnabled ? 1 : 0,
-  PRE_MEG_TIEBREAKER_EXPORT_ORDER.indexOf(preMegTiebreakerMode),
   Math.round(safeAggressiveAvoidHighProbThreshold * 100),
   RESOLUTION_OPPORTUNITY_STYLE_EXPORT_ORDER.indexOf(resolutionOpportunityStyle)
 ].join(",");
@@ -7437,22 +7464,26 @@ const presetPart = [
     .indexOf(evPreference)
 ].join(",");
 
-  return [
-    "SV1",
-    tieBreakerPart,
-    safetyPart,
-    presetPart
-  ].join("|");
+const enabledPart = encodeTieBreakerEnabledPart();
+
+return [
+  "SV1",
+  tieBreakerPart,
+  safetyPart,
+  presetPart,
+  enabledPart
+].join("|");
 }
 
 function loadAdvancedSettingsCodePayload(code) {
   try {
     const [
-      version,
-      tieBreakerPart,
-      safetyPart,
-      presetPart
-    ] = code.trim().split("|");
+  version,
+  tieBreakerPart,
+  safetyPart,
+  presetPart,
+  enabledPart
+] = code.trim().split("|");
 
     if (version !== "SV1") {
       return false;
@@ -7479,6 +7510,8 @@ function loadAdvancedSettingsCodePayload(code) {
     );
 
     saveTieBreakerConfig();
+	applyTieBreakerEnabledPart(enabledPart);
+	saveTieBreakerEnabled();
 
     const safety = safetyPart.split(",").map(Number);
 
@@ -7488,26 +7521,20 @@ function loadAdvancedSettingsCodePayload(code) {
     safeAggressiveAvoidHighProb = safety[3] === 1;
 	preMegTiebreakersEnabled =
   safety.length < 5 ? true : safety[4] === 1;
-
-preMegTiebreakerMode =
-  safety.length < 6
-    ? "avoidMissEndsGame"
-    : PRE_MEG_TIEBREAKER_EXPORT_ORDER[safety[5]] ||
-      "avoidMissEndsGame";
 	  
 	  safeAggressiveAvoidHighProbThreshold =
-  safety.length < 7 ? 0.90 : safety[6] / 100;
-  
-  resolutionOpportunityStyle =
-  safety.length < 8
+  safety.length < 6 ? 0.90 : safety[5] / 100;
+
+resolutionOpportunityStyle =
+  safety.length < 7
     ? "any"
-    : RESOLUTION_OPPORTUNITY_STYLE_EXPORT_ORDER[safety[7]] ||
+    : RESOLUTION_OPPORTUNITY_STYLE_EXPORT_ORDER[safety[6]] ||
       "any";
 
     const presets = presetPart.split(",").map(Number);
 
     equivalenceModeStrictness =
-  EQUIVALENCE_EXPORT_ORDER[presets[0]] || "default";
+  EQUIVALENCE_EXPORT_ORDER[presets[0]] || "strictEVAndCollapse";
 
 strategicScorePreset =
   STRATEGIC_PRESET_EXPORT_ORDER[presets[1]] || "default";
@@ -7542,6 +7569,11 @@ function applyConfiguredTiebreakers(
   let layer = startingLayer;
 
   for (const key of order) {
+  
+  if (tieBreakerEnabled?.[moveClass]?.[key] === false) {
+  continue;
+}
+
     const def = TIEBREAKER_DEFINITIONS[key];
 
     if (!def) continue;
@@ -7604,7 +7636,14 @@ window.resetTieBreakers = function(moveClass) {
     ...DEFAULT_TIEBREAKER_CONFIG[moveClass]
   ];
 
+  tieBreakerEnabled[moveClass] = {};
+
+  for (const key of DEFAULT_TIEBREAKER_CONFIG[moveClass]) {
+    tieBreakerEnabled[moveClass][key] = true;
+  }
+
   saveTieBreakerConfig();
+  saveTieBreakerEnabled();
   renderAdvancedSettings();
 
   refreshRecommendationsForAdvancedSettingChange();
@@ -8799,57 +8838,37 @@ function applyPreMegTiebreaker(pool) {
     };
   }
 
-  if (preMegTiebreakerMode === "avoidMissEndsGame") {
+  let currentPool = pool;
+  let layer = 0;
+
+  for (const key of tieBreakerConfig.preMeg || []) {
+    const def = TIEBREAKER_DEFINITIONS[key];
+    if (!def) continue;
+
     const result = applyTiebreakLayer(
-      pool,
-      c => c.missEndsGameChance,
-      false,
-      "Lowest chance to enter miss-ends-game",
-      0
+      currentPool,
+      c => def.getValue(c),
+      def.higherIsBetter,
+      def.label,
+      layer
     );
 
-    return { ...result, applied: true };
+    if (result.winner) {
+      return {
+        ...result,
+        applied: true
+      };
+    }
+
+    currentPool = result.pool;
+    layer++;
   }
 
-  if (preMegTiebreakerMode === "missEndsGameForcedEV") {
-    const result = applyTiebreakLayer(
-      pool,
-      c => c.entersMissEndsGame
-        ? c.missEndsGameForcedEV || 0
-        : -Infinity,
-      true,
-      "More guaranteed EV on worst miss-ends-game branch",
-      0
-    );
-
-    return { ...result, applied: true };
-  }
-
-  if (preMegTiebreakerMode === "missEndsGameForcedTiles") {
-    const result = applyTiebreakLayer(
-      pool,
-      c => c.entersMissEndsGame
-        ? c.missEndsGameForcedTiles || 0
-        : -Infinity,
-      true,
-      "More guaranteed tiles on worst outcome branch if miss-ends-game would activate",
-      0
-    );
-
-    return { ...result, applied: true };
-  }
-
-  const result = applyTiebreakLayer(
-    pool,
-    c => c.entersMissEndsGame
-      ? c.worstOutcomeBoardCount
-      : Infinity,
-    false,
-    "Lowest board count on worst miss-ends-game branch",
-    0
-  );
-
-  return { ...result, applied: true };
+  return {
+    winner: null,
+    pool: currentPool,
+    applied: true
+  };
 }
 
 function getMissEndsGameForcedTileScore(candidate) {
@@ -9761,31 +9780,17 @@ function renderAdvancedSafetySettings() {
     )}
 
     ${renderSettingRow(
-      `
-        <div style="display:flex; flex-direction:column; gap:6px; align-items:flex-start;">
-          <button
-            id="preMegTiebreakersToggle"
-            class="${preMegTiebreakersEnabled ? "active-btn" : ""}"
-            onclick="togglePreMegTiebreakers(this)"
-          >
-            Pre-MEG Tiebreaker 🦈
-          </button>
-
-          <select
-            id="preMegTiebreakerModeSelect"
-            style="max-width: 210px;"
-            onchange="setPreMegTiebreakerMode(this.value)"
-            ${preMegTiebreakersEnabled ? "" : "disabled"}
-          >
-            ${renderOption("worstOutcomeBoards", "Worst Outcome: Board Count", preMegTiebreakerMode)}
-            ${renderOption("missEndsGameForcedTiles", "MEG Branch: Guaranteed Tiles", preMegTiebreakerMode)}
-            ${renderOption("avoidMissEndsGame", "Lowest MEG Chance", preMegTiebreakerMode)}
-            ${renderOption("missEndsGameForcedEV", "MEG Branch: Guaranteed EV", preMegTiebreakerMode)}
-          </select>
-        </div>
-      `,
-      "If a move could cause the next Miss to End the Game (MEG), apply a top-priority Best Safe Move tiebreaker. Can be toggled off. Apply whichever of the options you like."
-    )}
+  `
+    <button
+      id="preMegTiebreakersToggle"
+      class="${preMegTiebreakersEnabled ? "active-btn" : ""}"
+      onclick="togglePreMegTiebreakers(this)"
+    >
+      Pre-MEG Tiebreaker 🦈
+    </button>
+  `,
+  "If a move could cause the next Miss to End the Game (MEG), apply the configurable Pre-MEG tiebreaker order."
+)}
 
     ${renderSettingRow(
       `
@@ -9909,6 +9914,11 @@ ${renderAdvancedRareTargetingSettings()}
     renderTieBreakerClass(
       "strategicSafe",
       "Best Strategic Move — Safe"
+    ),
+	
+	renderTieBreakerClass(
+      "preMeg",
+      "Pre-MEG Tiebreakers"
     )
   ].join("")
 )}
@@ -9961,7 +9971,10 @@ return `
             const def = TIEBREAKER_DEFINITIONS[key];
 
             return `
-              <div class="tie-breaker-row">
+              <div
+  class="tie-breaker-row"
+  style="${tieBreakerEnabled?.[moveClass]?.[key] === false ? "opacity:0.45;" : ""}"
+>
                 <span>${getTieBreakerDisplayLabel(key)}</span>
 
                 <span class="tie-breaker-controls">
@@ -9979,18 +9992,26 @@ return `
                   >
                     ↓
                   </button>
+				  
+				  <button
+  onclick="toggleTieBreakerEnabled('${moveClass}','${key}')"
+>
+  ${tieBreakerEnabled?.[moveClass]?.[key] === false ? "Enable" : "Disable"}
+</button>
 
                 </span>
               </div>
             `;
           }).join("")}
 
-          <div class="tie-breaker-row">
-            <span>Lowest tile index</span>
-            <span class="tie-breaker-locked">
-              🔒 locked fallback
-            </span>
-          </div>
+          ${moveClass === "preMeg" ? "" : `
+  <div class="tie-breaker-row">
+    <span>Lowest tile index</span>
+    <span class="tie-breaker-locked">
+      🔒 locked fallback
+    </span>
+  </div>
+`}
 
           <div style="margin-top:8px;">
             <button
@@ -14029,6 +14050,82 @@ function buildPlacementsMap(ships) {
 // T.15 HASH CREATION / LOADING
 // ===============================
 
+function createDefaultTieBreakerEnabled() {
+  const enabled = {};
+
+  for (const moveClass in DEFAULT_TIEBREAKER_CONFIG) {
+    enabled[moveClass] = {};
+
+    for (const key of DEFAULT_TIEBREAKER_CONFIG[moveClass]) {
+      enabled[moveClass][key] = true;
+    }
+  }
+
+  return enabled;
+}
+
+function loadTieBreakerEnabled() {
+  const defaults = createDefaultTieBreakerEnabled();
+
+  try {
+    const saved = JSON.parse(
+      localStorage.getItem("otTieBreakerEnabled") || "{}"
+    );
+
+    for (const moveClass in defaults) {
+      for (const key in defaults[moveClass]) {
+        if (typeof saved?.[moveClass]?.[key] === "boolean") {
+          defaults[moveClass][key] = saved[moveClass][key];
+        }
+      }
+    }
+  } catch {
+  }
+
+  return defaults;
+}
+
+function encodeTieBreakerEnabledPart() {
+  return SETTINGS_EXPORT_ORDER
+    .map(moveClass =>
+      (tieBreakerConfig[moveClass] || [])
+        .map(key =>
+          tieBreakerEnabled?.[moveClass]?.[key] === false ? 0 : 1
+        )
+        .join("")
+    )
+    .join(".");
+}
+
+function applyTieBreakerEnabledPart(enabledPart) {
+  tieBreakerEnabled = createDefaultTieBreakerEnabled();
+
+  if (!enabledPart) return;
+
+  const chunks = enabledPart.split(".");
+
+  SETTINGS_EXPORT_ORDER.forEach((moveClass, moveClassIndex) => {
+    const order = tieBreakerConfig[moveClass] || [];
+    const chunk = chunks[moveClassIndex] || "";
+
+    if (!tieBreakerEnabled[moveClass]) {
+      tieBreakerEnabled[moveClass] = {};
+    }
+
+    order.forEach((key, keyIndex) => {
+      tieBreakerEnabled[moveClass][key] =
+        chunk[keyIndex] !== "0";
+    });
+  });
+}
+
+function saveTieBreakerEnabled() {
+  localStorage.setItem(
+    "otTieBreakerEnabled",
+    JSON.stringify(tieBreakerEnabled)
+  );
+}
+
 function loadTieBreakerConfig() {
   const defaults = structuredClone(DEFAULT_TIEBREAKER_CONFIG);
 
@@ -14077,18 +14174,25 @@ function hasNonDefaultAdvancedSettings() {
     for (let i = 0; i < defaults.length; i++) {
       if (current[i] !== defaults[i]) return true;
     }
+
+    for (const key of defaults) {
+      if (
+        tieBreakerEnabled?.[moveClass]?.[key] === false
+      ) {
+        return true;
+      }
+    }
   }
 
-    return (
+  return (
     resolutionOpportunityThreshold !== 0.10 ||
     resolutionOpportunityStyle !== "any" ||
-    equivalenceModeStrictness !== "default" ||
+    equivalenceModeStrictness !== "strictEVAndCollapse" ||
     strategicScorePreset !== "default" ||
     rareTargetingAggressiveness !== "default" ||
     overlapPreference !== "default" ||
     evPreference !== "default" ||
-    preMegTiebreakersEnabled !== true ||
-    preMegTiebreakerMode !== "avoidMissEndsGame"
+    preMegTiebreakersEnabled !== true
   );
 }
 
@@ -14302,6 +14406,20 @@ function getMovesForCurrentGrid(){
 // T.16 EVENT BINDS
 // ===============================
 
+window.toggleTieBreakerEnabled = function(moveClass, key) {
+  if (!tieBreakerEnabled[moveClass]) {
+    tieBreakerEnabled[moveClass] = {};
+  }
+
+  tieBreakerEnabled[moveClass][key] =
+    tieBreakerEnabled[moveClass][key] === false;
+
+  saveTieBreakerEnabled();
+  renderAdvancedSettings();
+
+  refreshRecommendationsForAdvancedSettingChange();
+};
+
 window.setResolutionOpportunityStyle = function(value) {
   resolutionOpportunityStyle = value;
   updateTieBreakerNotice();
@@ -14330,20 +14448,6 @@ window.togglePreMegTiebreakers = function(btn) {
     'active-btn',
     preMegTiebreakersEnabled
   );
-  
-  document
-  .getElementById('preMegTiebreakerModeSelect')
-  ?.toggleAttribute(
-    'disabled',
-    !preMegTiebreakersEnabled
-  );
-
-  updateTieBreakerNotice();
-  refreshRecommendationsForAdvancedSettingChange();
-};
-
-window.setPreMegTiebreakerMode = function(value) {
-  preMegTiebreakerMode = value;
 
   updateTieBreakerNotice();
   refreshRecommendationsForAdvancedSettingChange();
@@ -14407,12 +14511,14 @@ window.resetAllAdvancedSettings = function() {
   tieBreakerConfig = JSON.parse(
     JSON.stringify(DEFAULT_TIEBREAKER_CONFIG)
   );
+  
+  tieBreakerEnabled = createDefaultTieBreakerEnabled();
 
   resolutionOpportunityThreshold = 0.10;
   resolutionOpportunityStyle = "any";
   
 
-  equivalenceModeStrictness = "default";
+  equivalenceModeStrictness = "strictEVAndCollapse";
   strategicScorePreset = "default";
   rareTargetingAggressiveness = "default";
   overlapPreference = "default";
@@ -14432,6 +14538,7 @@ window.resetAllAdvancedSettings = function() {
   }
 
   saveTieBreakerConfig();
+saveTieBreakerEnabled();
 
   renderAdvancedSettings();
   updateTieBreakerNotice();
