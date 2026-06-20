@@ -21,6 +21,7 @@
 // T.13 VISUALS
 // T.14 GRID UTILS
 // T.15 HASH CREATION / LOADING
+// T.15A ADVANCED SETTINGS SERIALIZATION
 // T.16 EVENT BINDS
 // T.17 INITIALIZATION
 // ===============================
@@ -1699,7 +1700,6 @@ simulationBoard: null,
 simulationBoardContainer: null,
 heatmapTitle: null,
 heatmapSubtitle: null,
-heatmapToggleBtn: null,
 heatmapModeButtons: null,
 rareTargetToggleBtn: null,
 infoBox: null,
@@ -1720,6 +1720,8 @@ lastUpdatedBadgeText: null
 	const FUTURE_COLLAPSE_SHORTLIST = 5;
 
 	const LOCKED_FALLBACK_TIEBREAKER = "tileIndex";
+	
+	const EPSILON = 0.000001;
 
 	const STRATEGIC_SCORE_PRESETS = {
 	default: {
@@ -2328,6 +2330,10 @@ key: cells[0],
 	let rareTargetingAggressiveness = "default";
 	let overlapPreference = "default";
 	let evPreference = "default";
+	let prSphereBonus = 0;
+	let spherePremium = false;
+	let sphereBonusMultiplierPercent = 0;
+	let advancedSphereSettingsExpanded = false;
 	let safeAvoidAdjacentKnown = false;
 	let safeAggressiveAvoidHighProb = false;
 	let safeAggressiveAvoidHighProbThreshold = 0.90;
@@ -3354,18 +3360,6 @@ solverInfo: null
 		return true;
 	}
 
-	function isFirstAnonymousRareInList(ship, remainingShips){
-		if(!isAnonymousRareShip(ship)) return true;
-
-		for(const s of remainingShips){
-			if(isAnonymousRareShip(s)){
-				return s === ship;
-			}
-		}
-
-		return true;
-	}
-
 	function getKnownCells(color){
 		if(color.startsWith('rare_')) return [];
 
@@ -3482,10 +3476,6 @@ solverInfo: null
 		return stats.hits < 5 && stats.foundColors.size < 3;
 	}
 
-	function getFoundShipColorCount(){
-		return getFoundColors().size;
-	}
-
 	function isNormalMode() {
 		return currentMode === MODE.NORMAL;
 	}
@@ -3554,13 +3544,22 @@ solverInfo: null
 		);
 	}
 	
+	function getSphereEVValue(value) {
+		const premiumBonus = spherePremium ? 5 : 0;
+		const multiplier = spherePremium
+		? 1 + (sphereBonusMultiplierPercent / 100)
+		: 1;
+
+		return (value + prSphereBonus + premiumBonus) * multiplier;
+	}
+
 	function getBlueTileEV() {
-		return TILE_EV.miss;
+		return getSphereEVValue(TILE_EV.miss);
 	}
 
 	function getEVTrackerShipTileEV(color) {
 		if (TILE_EV[color] !== undefined) {
-			return TILE_EV[color];
+			return getSphereEVValue(TILE_EV[color]);
 		}
 
 		if (isAnonymousRareShip(color)) {
@@ -3787,7 +3786,7 @@ solverInfo: null
 			if (!hiddenColors.length) continue;
 
 			const avgHiddenEV =
-			hiddenColors.reduce((sum, color) => sum + TILE_EV[color], 0) /
+			hiddenColors.reduce((sum, color) => sum + getEVTrackerShipTileEV(color), 0) /
 			hiddenColors.length;
 
 			for (const ship of anonymousShips) {
@@ -4792,7 +4791,7 @@ countOnly: !fullExactAvailable || !allBoards
 			return;
 		}
 
-		const effectiveUnknownTiles = getEffectiveUnknownTilesForPrecalc();
+		// const effectiveUnknownTiles = getEffectiveUnknownTilesForPrecalc();
 
 
 
@@ -4895,13 +4894,6 @@ minClarityGain: 1.0
 		applyEquivalenceResult(analysis, probs);
 
 		updateExactSolverUI(valid);
-	}
-
-	function cloneShipMasksWithPlacement(shipMasks, ship, placementMask) {
-		return {
-			...shipMasks,
-			[ship]: (shipMasks[ship] || 0) | placementMask
-		};
 	}
 
 	function resetExactSolverState() {
@@ -5103,10 +5095,10 @@ equivalenceGroups: buildEquivalenceGroupsFromHitMasks(hitMasks)
 	}
 
 	function getOutcomeEV(color, anonymousRareEVByShipId = null) {
-		if (!color) return TILE_EV.miss;
+		if (!color) return getBlueTileEV();
 
 		if (TILE_EV[color] !== undefined) {
-			return TILE_EV[color];
+			return getEVTrackerShipTileEV(color);
 		}
 
 		if (isAnonymousRareShip(color)) {
@@ -5448,199 +5440,6 @@ unknownTilesCache: new Map()
 		}
 
 		return groups;
-	}
-
-	function selectNextShipIndex(
-	remainingShips,
-	placementsMap,
-	board,
-	occupiedMask,
-	knownMissMask,
-	lastRarePlacementKey,
-	shipMasks
-	){
-		let bestIndex = -1;
-		let bestPlacements = null;
-		let bestCount = Infinity;
-
-		for(let i = 0; i < remainingShips.length; i++){
-			const ship = remainingShips[i];
-			const placements = placementsMap[ship];
-
-			const legalPlacements = getLegalPlacementsForShip(
-			ship,
-			placements,
-			board,
-			occupiedMask,
-			knownMissMask,
-			lastRarePlacementKey,
-			remainingShips,
-			shipMasks
-			);
-
-			if(legalPlacements === null) continue;
-
-			const legalCount = legalPlacements.length;
-
-			if(legalCount === 0){
-				return {
-index: i,
-legalCount: 0,
-					legalPlacements
-				};
-			}
-
-			if(legalCount < bestCount){
-				bestCount = legalCount;
-				bestIndex = i;
-				bestPlacements = legalPlacements;
-			}
-		}
-
-		return {
-index: bestIndex,
-legalCount: bestCount,
-legalPlacements: bestPlacements
-		};
-	}
-
-	function enumerateAllBoards(ships, placementsMap) {
-
-		const counts = Array(25).fill(0);
-		let valid = 0;
-		const seen = new Set();
-		const allBoards = [];
-
-		const deadStates = new Set();
-
-		function dfsStateKey(
-		remainingShips,
-		occupiedMask,
-		lastRarePlacementKey,
-		shipMasks
-		){
-			const shipMaskKey = Object
-			.keys(shipMasks)
-			.sort()
-			.map(ship => ship + ':' + shipMasks[ship])
-			.join(',');
-
-			return (
-			remainingShips.join('|') +
-			'|' +
-			occupiedMask +
-			'|' +
-			lastRarePlacementKey +
-			'|' +
-			shipMaskKey
-			);
-		}
-
-		const board = Array(25).fill(null);
-		const knownMissMask = getKnownMissMask();
-
-		function enumeratePrunedBoardsDFS(
-		remainingShips,
-		occupiedMask = 0,
-		lastRarePlacementKey = -1,
-		shipMasks = {}
-		) {
-
-			const stateKey = dfsStateKey(
-			remainingShips,
-			occupiedMask,
-			lastRarePlacementKey,
-			shipMasks
-			);
-
-			if (deadStates.has(stateKey)) {
-				return;
-			}
-
-			const validBefore = valid;
-
-			if (remainingShips.length === 0) {
-				const snapshot = makeMaskBoard(shipMasks, occupiedMask);
-				const key = maskBoardKey(snapshot);
-
-				if (seen.has(key)) return;
-
-				seen.add(key);
-				valid++;
-
-				allBoards.push(snapshot);
-
-				let mask = occupiedMask;
-				while (mask) {
-					const bit = mask & -mask;
-					counts[BIT_INDEX[bit]]++;
-					mask &= mask - 1;
-				}
-
-				return;
-			}
-
-			const choice = selectNextShipIndex(
-			remainingShips,
-			placementsMap,
-			board,
-			occupiedMask,
-			knownMissMask,
-			lastRarePlacementKey,
-			shipMasks
-			);
-
-			if(choice.index === -1 || choice.legalCount === 0){
-				return;
-			}
-
-			const ship = remainingShips[choice.index];
-			const isAnonymousRare = isAnonymousRareShip(ship);
-
-			remainingShips.splice(choice.index, 1);
-
-			for (const placement of choice.legalPlacements) {
-				const keyForPlacement = placementKey(placement);
-				const placementMask = placement.mask;
-				const cells = placementCells(placement);
-
-				for(const i of cells){
-					board[i] = ship;
-				}
-
-				const prevShipMask = shipMasks[ship] || 0;
-
-				shipMasks[ship] = prevShipMask | placementMask;
-
-				enumeratePrunedBoardsDFS(
-				remainingShips,
-				occupiedMask | placementMask,
-				isAnonymousRare ? keyForPlacement : lastRarePlacementKey,
-				shipMasks
-				);
-
-				if (prevShipMask !== 0) {
-					shipMasks[ship] = prevShipMask;
-				} else {
-					delete shipMasks[ship];
-				}
-
-				for(const i of cells){
-					board[i] = null;
-				}
-			}
-
-			remainingShips.splice(choice.index, 0, ship);
-
-			if (valid === validBefore) {
-				deadStates.add(stateKey);
-			}
-
-		}
-
-		enumeratePrunedBoardsDFS([...ships]);
-
-		return { counts, valid, allBoards };
 	}
 
 	function computeProbabilities(counts, valid) {
@@ -6052,7 +5851,7 @@ reason: "This starts a complete move path that avoids equivalence mode."
 	}
 
 	function getBestUncertaintyRemovalMove(allBoards, probs) {
-		const EPSILON = 0.000001;
+		
 		const knownMask = getCurrentKnownMask();
 
 		let pool = [];
@@ -6312,15 +6111,11 @@ p: probs[tile],
 		const entropyA = getMoveOutcomeEntropy(aTile, allBoards);
 		const entropyB = getMoveOutcomeEntropy(bTile, allBoards);
 
-		if (Math.abs(entropyB - entropyA) > 0.000001) {
+		if (Math.abs(entropyB - entropyA) > EPSILON) {
 			return entropyB - entropyA; 
 		}
 
 		return aTile - bTile; 
-	}
-
-	function entropyBeats(candidateTile, bestTile, allBoards = appState.allBoards) {
-		return entropyTieBreak(candidateTile, bestTile, allBoards) < 0;
 	}
 
 	function getEntropyTiebreakerMeta(
@@ -6332,7 +6127,7 @@ p: probs[tile],
 		const entropyA = getMoveOutcomeEntropy(aTile, allBoards);
 		const entropyB = getMoveOutcomeEntropy(bTile, allBoards);
 
-		if (Math.abs(entropyA - entropyB) > 0.000001) {
+		if (Math.abs(entropyA - entropyB) > EPSILON) {
 			return {
 reason: withCandidateCount("Higher outcome entropy among candidates", 2),
 passed: passedBeforeEntropy
@@ -6345,12 +6140,8 @@ passed: passedBeforeEntropy + 1
 		};
 	}
 
-	function getEntropyTiebreakerReason(aTile, bTile, allBoards = appState.allBoards) {
-		return getEntropyTiebreakerMeta(aTile, bTile, allBoards).reason;
-	}
-
 	function keepBestCandidates(pool, getValue, higherIsBetter) {
-		const EPSILON = 0.000001;
+		
 
 		let bestValue = higherIsBetter ? -Infinity : Infinity;
 		let tied = [];
@@ -6856,7 +6647,7 @@ p: probs[firstTile],
 
 		candidates.sort((a, b) => {
 			const diff = a.expectedRemaining - b.expectedRemaining;
-			if (Math.abs(diff) > 0.000001) return diff;
+			if (Math.abs(diff) > EPSILON) return diff;
 
 			return entropyTieBreak(a.i, b.i, allBoards);
 		});
@@ -6865,7 +6656,7 @@ p: probs[firstTile],
 			const current = candidates[i];
 			const next = candidates[i + 1];
 
-			if (Math.abs(current.expectedRemaining - next.expectedRemaining) <= 0.000001) {
+			if (Math.abs(current.expectedRemaining - next.expectedRemaining) <= EPSILON) {
 				const meta = getEntropyTiebreakerMeta(current.i, next.i, allBoards, 1);
 				current.tiebreaker = meta.reason;
 				current.tiebreakerPassed = meta.passed;
@@ -7072,9 +6863,9 @@ p: data.probs[i] || 0,
 
 		if (
 				second &&
-				Math.abs(best.ev - second.ev) < 0.000001 &&
-				Math.abs(best.rareP - second.rareP) < 0.000001 &&
-				Math.abs(best.p - second.p) < 0.000001
+				Math.abs(best.ev - second.ev) < EPSILON &&
+				Math.abs(best.rareP - second.rareP) < EPSILON &&
+				Math.abs(best.p - second.p) < EPSILON
 				) {
 			return null;
 		}
@@ -7136,7 +6927,7 @@ evMap: tileEVStats,
 	}
 
 	function hasUniqueBestValue(items, getValue, higherIsBetter = true) {
-		const EPSILON = 0.000001;
+		
 
 		let bestValue = higherIsBetter ? -Infinity : Infinity;
 		let count = 0;
@@ -7253,6 +7044,63 @@ collapseMove: data.collapseMove || null
 	// ===============================
 	// T.11 MOVE STRATEGY
 	// ===============================
+	
+	function getUnplacedKnownForcedEntries() {
+	const forcedTiles = appState.forcedTiles;
+	if (!forcedTiles) return null;
+
+	const forcedEntries = Object.entries(forcedTiles)
+	.map(([index, color]) => ({
+		index: Number(index),
+		color
+	}))
+	.filter(({ index, color }) =>
+		grid[index] === null &&
+		color &&
+		!isAnonymousRareShip(color)
+	);
+
+	if (!forcedEntries.length) return null;
+
+	const unresolvedTiles = grid
+	.map((cell, index) => ({ cell, index }))
+	.filter(({ cell }) => cell === null);
+
+	const allUnresolvedKnown = unresolvedTiles.every(({ index }) =>
+		forcedTiles[index]
+	);
+
+	if (!allUnresolvedKnown) return null;
+
+	return {
+		forcedTiles,
+		forcedEntries,
+		forcedHits: forcedEntries.filter(({ color }) => color !== "miss"),
+		forcedMisses: forcedEntries.filter(({ color }) => color === "miss")
+	};
+}
+	
+	function getAutoFillForcedHits() {
+		if (!appState.forcedTiles) return [];
+
+		const hits = [];
+
+		for (const index in appState.forcedTiles) {
+			const color = appState.forcedTiles[index];
+			const i = Number(index);
+
+			if (
+					grid[i] === null &&
+					color &&
+					color !== 'miss' &&
+					!isAnonymousRareShip(color)
+					) {
+				hits.push({ index: i, color });
+			}
+		}
+
+		return hits;
+	}
 
 	function collapseFinalMoveCandidatesByOutcome(candidates, b1, b2){
 		const groups = {};
@@ -7459,170 +7307,6 @@ expectedRemaining: finalDecisionOpportunity.expectedRemaining
 		};
 	}
 
-	function boardSetHasFinalDecisionSetupMove(boardSet, knownMask, ctx) {
-		const boardCount = getBoardSetCount(boardSet, ctx);
-		if (boardCount <= 2) return false;
-
-		const candidateMask = FULL_BOARD_MASK & ~knownMask;
-
-		for (let mask = candidateMask; mask; mask &= mask - 1) {
-			const bit = mask & -mask;
-			const tile = BIT_INDEX[bit];
-
-			if (appState.forcedTiles?.[tile]) continue;
-
-			if (
-					scoreFinalDecisionSetupTile(
-						tile,
-						boardSet,
-						boardCount,
-						ctx,
-						appState.probs || []
-						)
-					) {
-				return true;
-			}
-		}
-
-		return false;
-	}
-
-	function invertObject(obj) {
-		return Object.fromEntries(
-		Object.entries(obj).map(([key, value]) => [value, key])
-		);
-	}
-
-	function encodeAdvancedSettings() {
-		const tieBreakerPart = SETTINGS_EXPORT_ORDER
-		.map(moveClass =>
-		tieBreakerConfig[moveClass]
-		.map(key => TIEBREAKER_EXPORT_IDS[key])
-		.join(",")
-		)
-		.join(".");
-
-		const safetyPart = [
-		Math.round(safeRiskBand * 100),
-		Math.round(resolutionOpportunityThreshold * 100),
-		safeAvoidAdjacentKnown ? 1 : 0,
-		safeAggressiveAvoidHighProb ? 1 : 0,
-		preMegTiebreakersEnabled ? 1 : 0,
-		Math.round(safeAggressiveAvoidHighProbThreshold * 100),
-		RESOLUTION_OPPORTUNITY_STYLE_EXPORT_ORDER.indexOf(resolutionOpportunityStyle)
-		].join(",");
-
-		const presetPart = [
-		EQUIVALENCE_EXPORT_ORDER
-		.indexOf(equivalenceModeStrictness),
-
-		STRATEGIC_PRESET_EXPORT_ORDER
-		.indexOf(strategicScorePreset),
-
-		RARE_TARGETING_EXPORT_ORDER
-		.indexOf(rareTargetingAggressiveness),
-
-		OVERLAP_PREFERENCE_EXPORT_ORDER
-		.indexOf(overlapPreference),
-
-		EV_PREFERENCE_EXPORT_ORDER
-		.indexOf(evPreference)
-		].join(",");
-
-		const enabledPart = encodeTieBreakerEnabledPart();
-
-		return [
-		"SV1",
-		tieBreakerPart,
-		safetyPart,
-		presetPart,
-		enabledPart
-		].join("|");
-	}
-
-	function loadAdvancedSettingsCodePayload(code) {
-		try {
-			const [
-			version,
-			tieBreakerPart,
-			safetyPart,
-			presetPart,
-			enabledPart
-			] = code.trim().split("|");
-
-			if (version !== "SV1") {
-				return false;
-			}
-
-			const moveClasses = SETTINGS_EXPORT_ORDER;
-			const tieBreakerById = invertObject(TIEBREAKER_EXPORT_IDS);
-
-			const tieBreakerChunks = tieBreakerPart.split(".");
-			const importedTieBreakers = {};
-
-			moveClasses.forEach((moveClass, index) => {
-				const chunk = tieBreakerChunks[index];
-				if (!chunk) return;
-
-				importedTieBreakers[moveClass] = chunk
-				.split(",")
-				.map(id => tieBreakerById[Number(id)])
-				.filter(Boolean);
-			});
-
-			tieBreakerConfig = JSON.parse(
-			JSON.stringify(importedTieBreakers)
-			);
-
-			saveTieBreakerConfig();
-			applyTieBreakerEnabledPart(enabledPart);
-			saveTieBreakerEnabled();
-
-			const safety = safetyPart.split(",").map(Number);
-
-			safeRiskBand = safety[0] / 100;
-			resolutionOpportunityThreshold = safety[1] / 100;
-			safeAvoidAdjacentKnown = safety[2] === 1;
-			safeAggressiveAvoidHighProb = safety[3] === 1;
-			preMegTiebreakersEnabled =
-			safety.length < 5 ? true : safety[4] === 1;
-			
-			safeAggressiveAvoidHighProbThreshold =
-			safety.length < 6 ? 0.90 : safety[5] / 100;
-
-			resolutionOpportunityStyle =
-			safety.length < 7
-			? "any"
-			: RESOLUTION_OPPORTUNITY_STYLE_EXPORT_ORDER[safety[6]] ||
-			"any";
-
-			const presets = presetPart.split(",").map(Number);
-
-			equivalenceModeStrictness =
-			EQUIVALENCE_EXPORT_ORDER[presets[0]] || "strictEVAndCollapse";
-
-			strategicScorePreset =
-			STRATEGIC_PRESET_EXPORT_ORDER[presets[1]] || "default";
-
-			rareTargetingAggressiveness =
-			RARE_TARGETING_EXPORT_ORDER[presets[2]] || "default";
-
-			overlapPreference =
-			OVERLAP_PREFERENCE_EXPORT_ORDER[presets[3]] || "default";
-
-			evPreference =
-			EV_PREFERENCE_EXPORT_ORDER[presets[4]] || "default";
-
-			renderAdvancedSettings();
-			updateTieBreakerNotice();
-			refreshRecommendationsForAdvancedSettingChange();
-
-			return true;
-		} catch {
-			return false;
-		}
-	}
-
 	function applyConfiguredTiebreakers(
 	candidates,
 	moveClass,
@@ -7820,7 +7504,7 @@ type: "safe"
 	}
 
 	function getForcedResolutionMove(allBoards, probs) {
-		const EPSILON = 0.000001;
+		
 		const { huntMode } = getGameContext();
 
 		if (huntMode) return null;
@@ -8087,35 +7771,12 @@ weightedEV: getCandidateWeightedEV(i)
 	}
 
 	function appendKnownSafeBlueBeforeForcedHitsCard(messages, ctx) {
-		const forcedTiles = appState.forcedTiles;
-		if (!forcedTiles) return false;
-		if (ctx.missEndsGame) return false;
+if (ctx.missEndsGame) return false;
 
-		const forcedEntries = Object.entries(forcedTiles)
-		.map(([index, color]) => ({
-index: Number(index),
-			color
-		}))
-		.filter(({ index, color }) =>
-		grid[index] === null &&
-		color &&
-		!isAnonymousRareShip(color)
-		);
+const knownForced = getUnplacedKnownForcedEntries();
+if (!knownForced) return false;
 
-		if (!forcedEntries.length) return false;
-
-		const unresolvedTiles = grid
-		.map((cell, index) => ({ cell, index }))
-		.filter(({ cell }) => cell === null);
-
-		const allUnresolvedKnown = unresolvedTiles.every(({ index }) =>
-		forcedTiles[index]
-		);
-
-		if (!allUnresolvedKnown) return false;
-
-		const forcedHits = forcedEntries.filter(({ color }) => color !== "miss");
-		const forcedMisses = forcedEntries.filter(({ color }) => color === "miss");
+const { forcedHits, forcedMisses } = knownForced;
 
 		if (!forcedHits.length || !forcedMisses.length) return false;
 
@@ -8150,34 +7811,10 @@ index: Number(index),
 	}
 
 	function handleKnownBoardInfo(messages) {
-		const forcedTiles = appState.forcedTiles;
-		if (!forcedTiles) return false;
+const knownForced = getUnplacedKnownForcedEntries();
+if (!knownForced) return false;
 
-		const forcedEntries = Object.entries(forcedTiles)
-		.map(([index, color]) => ({
-index: Number(index),
-			color
-		}))
-		.filter(({ index, color }) =>
-		grid[index] === null &&
-		color &&
-		!isAnonymousRareShip(color)
-		);
-
-		if (forcedEntries.length === 0) return false;
-
-		const unresolvedTiles = grid
-		.map((cell, index) => ({ cell, index }))
-		.filter(({ cell }) => cell === null);
-
-		const allUnresolvedKnown = unresolvedTiles.every(({ index }) =>
-		forcedTiles[index]
-		);
-
-		if (!allUnresolvedKnown) return false;
-
-		const forcedHits = forcedEntries.filter(({ color }) => color !== "miss");
-		const forcedMisses = forcedEntries.filter(({ color }) => color === "miss");
+const { forcedHits, forcedMisses } = knownForced;
 
 		const title =
 		forcedMisses.length === 0
@@ -8279,7 +7916,7 @@ rareP: getUnfoundRareProbability(i, allBoards)
 		.filter(x => x.rareP > 0);
 
 		if (rareCandidates.length) {
-			const EPSILON = 0.000001;
+			
 			const getScore = makeCollapseScoreGetter(allBoards, probs);
 
 			for (const candidate of rareCandidates) {
@@ -8538,38 +8175,6 @@ weightedEV: getCandidateWeightedEV(tile)
 		);
 	}
 
-	function chooseBestSafeCandidate(tiles, allBoards, probs) {
-		const getScore = makeCollapseScoreGetter(allBoards, probs);
-
-		let pool = [...tiles];
-
-		pool = keepBestCandidates(
-		pool,
-		tile => probs[tile],
-		false
-		);
-
-		if (pool.length === 1) return pool[0];
-
-		pool = keepBestCandidates(
-		pool,
-		tile => getScore(tile).expectedRemaining,
-		false
-		);
-
-		if (pool.length === 1) return pool[0];
-
-		pool = keepBestCandidates(
-		pool,
-		tile => getMoveOutcomeEntropy(tile, allBoards),
-		true
-		);
-
-		if (pool.length === 1) return pool[0];
-
-		return chooseLowestIndexCandidate(pool);
-	}
-
 	function getUnfoundRareProbability(tile, allBoards) {
 		const foundColors = getFoundColors();
 		let count = 0;
@@ -8587,36 +8192,6 @@ weightedEV: getCandidateWeightedEV(tile)
 		}
 
 		return count / allBoards.length;
-	}
-
-	function getCandidateUnfoundColorBonus(tileIndex, allBoards){
-		if (allBoards === appState.allBoards && unfoundBonusCache) {
-			return unfoundBonusCache[tileIndex] || 0;
-		}
-
-		if(!allBoards || allBoards.length === 0) return 0;
-
-		const foundColors = getFoundColors();
-		const unfoundHitsByColor = {};
-
-		for(const board of allBoards){
-			const color = getBoardColorAt(board, tileIndex);
-
-			if(!color) continue;
-			if(isRareShipId(color)) continue;
-			if(foundColors.has(color)) continue;
-
-			unfoundHitsByColor[color] =
-			(unfoundHitsByColor[color] || 0) + 1;
-		}
-
-		let bonus = 0;
-
-		for(const color in unfoundHitsByColor){
-			bonus += unfoundHitsByColor[color] / allBoards.length;
-		}
-
-		return bonus;
 	}
 
 	function buildCandidates(probs) {
@@ -9296,62 +8871,6 @@ size2: 0
 		return stats;
 	}
 
-	function compareUndiscoveredShipTiebreak(a, b) {
-		const size4Diff =
-		b.undiscoveredShip.size4 - a.undiscoveredShip.size4;
-
-		if (Math.abs(size4Diff) > 0.000001) {
-			return size4Diff;
-		}
-
-		const size3Diff =
-		b.undiscoveredShip.size3 - a.undiscoveredShip.size3;
-
-		if (Math.abs(size3Diff) > 0.000001) {
-			return size3Diff;
-		}
-
-		const size2Diff =
-		b.undiscoveredShip.size2 - a.undiscoveredShip.size2;
-
-		if (Math.abs(size2Diff) > 0.000001) {
-			return size2Diff;
-		}
-
-		return 0;
-	}
-
-	function getUndiscoveredShipTiebreakLabel(current, next) {
-		if (
-				Math.abs(
-					current.undiscoveredShip.size4 -
-					next.undiscoveredShip.size4
-					) > 0.000001
-				) {
-			return "Higher chance to reveal undiscovered size-4 ship";
-		}
-
-		if (
-				Math.abs(
-					current.undiscoveredShip.size3 -
-					next.undiscoveredShip.size3
-					) > 0.000001
-				) {
-			return "Higher chance to reveal undiscovered size-3 ship";
-		}
-
-		if (
-				Math.abs(
-					current.undiscoveredShip.size2 -
-					next.undiscoveredShip.size2
-					) > 0.000001
-				) {
-			return "Higher chance to reveal undiscovered size-2 ship";
-		}
-
-		return null;
-	}
-
 	function clamp01(value) {
 		if (!Number.isFinite(value)) return 0;
 		return Math.max(0, Math.min(1, value));
@@ -9532,7 +9051,7 @@ size2: 0
 			? bValue - aValue
 			: aValue - bValue;
 
-			if (Math.abs(diff) > 0.000001) {
+			if (Math.abs(diff) > EPSILON) {
 				return diff;
 			}
 		}
@@ -9556,7 +9075,7 @@ size2: 0
 			const currentValue = def.getValue(current, context);
 			const nextValue = def.getValue(next, context);
 
-			if (Math.abs(currentValue - nextValue) > 0.000001) {
+			if (Math.abs(currentValue - nextValue) > EPSILON) {
 				const label =
 				typeof def.label === "function"
 				? def.label(context)
@@ -9597,7 +9116,7 @@ label: "Lowest tile index (could not break tie)",
 
 		candidates.sort((a, b) => {
 			const scoreDiff = b.score - a.score;
-			if (Math.abs(scoreDiff) > 0.000001) return scoreDiff;
+			if (Math.abs(scoreDiff) > EPSILON) return scoreDiff;
 
 			return compareConfiguredStrategicTiebreakers(
 			a,
@@ -9611,7 +9130,7 @@ label: "Lowest tile index (could not break tie)",
 			const current = candidates[i];
 			const next = candidates[i + 1];
 
-			if (Math.abs(current.score - next.score) > 0.000001) {
+			if (Math.abs(current.score - next.score) > EPSILON) {
 				continue;
 			}
 
@@ -9670,28 +9189,6 @@ label: "Lowest tile index (could not break tie)",
 	// ===============================
 	// T.12 UI
 	// ===============================
-
-	function getAutoFillForcedHits() {
-		if (!appState.forcedTiles) return [];
-
-		const hits = [];
-
-		for (const index in appState.forcedTiles) {
-			const color = appState.forcedTiles[index];
-			const i = Number(index);
-
-			if (
-					grid[i] === null &&
-					color &&
-					color !== 'miss' &&
-					!isAnonymousRareShip(color)
-					) {
-				hits.push({ index: i, color });
-			}
-		}
-
-		return hits;
-	}
 
 	function selectedAttr(current, value) {
 		return current === value ? "selected" : "";
@@ -9753,6 +9250,61 @@ label: "Lowest tile index (could not break tie)",
 			)}
 		</div>
 		`;
+	}
+	
+	function renderAdvancedSphereSettings() {
+		const body = `
+		${renderSettingRow(
+			`
+			<select
+			id="prSphereBonusSelect"
+			onchange="setPRSphereBonus(this.value)"
+			>
+			${[0,2,4,6,8,10,12,14,16,18,20].map(value =>
+				renderOption(String(value), `+${value}`, String(prSphereBonus))
+				).join("")}
+			</select>
+			`,
+			"Your $PR sphere bonus. Adds this amount to every EV value."
+			)}
+
+		${renderSettingRow(
+			`
+			<button
+			id="spherePremiumToggle"
+			class="${spherePremium ? "active-btn" : ""}"
+			onclick="toggleSpherePremium(this)"
+			>
+			Premium
+			</button>
+			`,
+			"Adds +5 sheres after the $PR sphere bonus and activates the $setspherebonus multiplier."
+			)}
+
+		${renderSettingRow(
+			`
+			<input
+			id="sphereBonusMultiplierInput"
+			type="number"
+			min="1"
+			max="100"
+			step="1"
+			value="${sphereBonusMultiplierPercent}"
+			onchange="setSphereBonusMultiplier(this.value)"
+			style="max-width: 100px;"
+			${spherePremium ? "" : "disabled"}
+			>
+			`,
+			"Your server's $setspherebonus multiplier."
+			)}
+		`;
+
+		return renderCollapsibleAdvancedSection(
+		"Sphere Settings",
+		advancedSphereSettingsExpanded,
+		"toggleAdvancedSphereSettings",
+		body
+		);
 	}
 
 	function renderAdvancedStrategicSettings() {
@@ -9962,6 +9514,7 @@ label: "Lowest tile index (could not break tie)",
 		${renderAdvancedSafetySettings()}
 		${renderAdvancedStrategicSettings()}
 		${renderAdvancedRareTargetingSettings()}
+		${renderAdvancedSphereSettings()}
 
 		${renderCollapsibleAdvancedSection(
 			"Tie Breaker Order",
@@ -11742,7 +11295,7 @@ p: rainbowChance,
 		}
 
 		return huntMode
-		? "Aggressive opening: any of the semi-corners are equally optimal starting moves."
+		? "Aggressive opening: any of the four tiles adjacent to center are equally optimal starting moves."
 		: "Safe opening: all four corners are equally optimal starting moves.";
 	}
 
@@ -13082,12 +12635,6 @@ label: huntMode
 		}
 	}
 
-	function removeClassIfPresent(el, className) {
-		if (el.classList.contains(className)) {
-			el.classList.remove(className);
-		}
-	}
-
 	function highlightRecommendations(probs) {
 		if (!isNormalMode()) return;
 
@@ -13282,7 +12829,7 @@ safest: displayedSafest
 		for (const tile of bestTiles) {
 			const p = data.probs?.[tile] ?? 0;
 
-			if (Math.abs(p - 0.5) > 0.000001) {
+			if (Math.abs(p - 0.5) > EPSILON) {
 				return null;
 			}
 
@@ -13348,7 +12895,7 @@ safest: displayedSafest
 	function getBestCollapseTile(tiles, data) {
 		if (!tiles?.length || !data?.allBoards?.length) return null;
 
-		const EPS = 0.000001;
+		const EPS = EPSILON;
 
 		let bestExpectedRemaining = Infinity;
 		let bestTiles = [];
@@ -14153,10 +13700,6 @@ EV: <b>${gambaOption.ev.toFixed(0)}</b><br>
 		return placement.cells ?? placement;
 	}
 
-	function cellMask(i){
-		return 1 << i;
-	}
-
 	function getPlacementMask(placement){
 		return placement.mask;
 	}
@@ -14525,26 +14068,6 @@ colorMasks: { ...shipMasks }
 		: "none";
 	}
 
-	function toBase64Url(text) {
-		return btoa(text)
-		.replace(/\+/g, "-")
-		.replace(/\//g, "_")
-		.replace(/=+$/g, "");
-	}
-
-	function fromBase64Url(text) {
-		const base64 = text
-		.replace(/-/g, "+")
-		.replace(/_/g, "/");
-
-		const padded = base64.padEnd(
-		Math.ceil(base64.length / 4) * 4,
-		"="
-		);
-
-		return atob(padded);
-	}
-
 	function createBitWriter(){
 		let bits = [];
 
@@ -14716,11 +14239,156 @@ newColor: grid[i]
 
 		return encoded;
 	}
+	
+	// ===============================
+	// T.15A ADVANCED SETTINGS SERIALIZATION
+	// ===============================
+	
+	function invertObject(obj) {
+		return Object.fromEntries(
+		Object.entries(obj).map(([key, value]) => [value, key])
+		);
+	}
+	
+	function loadAdvancedSettingsCodePayload(code) {
+		try {
+			const [
+			version,
+			tieBreakerPart,
+			safetyPart,
+			presetPart,
+			enabledPart
+			] = code.trim().split("|");
+
+			if (version !== "SV1") {
+				return false;
+			}
+
+			const moveClasses = SETTINGS_EXPORT_ORDER;
+			const tieBreakerById = invertObject(TIEBREAKER_EXPORT_IDS);
+
+			const tieBreakerChunks = tieBreakerPart.split(".");
+			const importedTieBreakers = {};
+
+			moveClasses.forEach((moveClass, index) => {
+				const chunk = tieBreakerChunks[index];
+				if (!chunk) return;
+
+				importedTieBreakers[moveClass] = chunk
+				.split(",")
+				.map(id => tieBreakerById[Number(id)])
+				.filter(Boolean);
+			});
+
+			tieBreakerConfig = JSON.parse(
+			JSON.stringify(importedTieBreakers)
+			);
+
+			saveTieBreakerConfig();
+			applyTieBreakerEnabledPart(enabledPart);
+			saveTieBreakerEnabled();
+
+			const safety = safetyPart.split(",").map(Number);
+
+			safeRiskBand = safety[0] / 100;
+			resolutionOpportunityThreshold = safety[1] / 100;
+			safeAvoidAdjacentKnown = safety[2] === 1;
+			safeAggressiveAvoidHighProb = safety[3] === 1;
+			preMegTiebreakersEnabled =
+			safety.length < 5 ? true : safety[4] === 1;
+			
+			safeAggressiveAvoidHighProbThreshold =
+			safety.length < 6 ? 0.90 : safety[5] / 100;
+
+			resolutionOpportunityStyle =
+			safety.length < 7
+			? "any"
+			: RESOLUTION_OPPORTUNITY_STYLE_EXPORT_ORDER[safety[6]] ||
+			"any";
+
+			const presets = presetPart.split(",").map(Number);
+
+			equivalenceModeStrictness =
+			EQUIVALENCE_EXPORT_ORDER[presets[0]] || "strictEVAndCollapse";
+
+			strategicScorePreset =
+			STRATEGIC_PRESET_EXPORT_ORDER[presets[1]] || "default";
+
+			rareTargetingAggressiveness =
+			RARE_TARGETING_EXPORT_ORDER[presets[2]] || "default";
+
+			overlapPreference =
+			OVERLAP_PREFERENCE_EXPORT_ORDER[presets[3]] || "default";
+
+			evPreference =
+			EV_PREFERENCE_EXPORT_ORDER[presets[4]] || "default";
+
+			renderAdvancedSettings();
+			updateTieBreakerNotice();
+			refreshRecommendationsForAdvancedSettingChange();
+
+			return true;
+		} catch {
+			return false;
+		}
+	}
+	
+	function encodeAdvancedSettings() {
+		const tieBreakerPart = SETTINGS_EXPORT_ORDER
+		.map(moveClass =>
+		tieBreakerConfig[moveClass]
+		.map(key => TIEBREAKER_EXPORT_IDS[key])
+		.join(",")
+		)
+		.join(".");
+
+		const safetyPart = [
+		Math.round(safeRiskBand * 100),
+		Math.round(resolutionOpportunityThreshold * 100),
+		safeAvoidAdjacentKnown ? 1 : 0,
+		safeAggressiveAvoidHighProb ? 1 : 0,
+		preMegTiebreakersEnabled ? 1 : 0,
+		Math.round(safeAggressiveAvoidHighProbThreshold * 100),
+		RESOLUTION_OPPORTUNITY_STYLE_EXPORT_ORDER.indexOf(resolutionOpportunityStyle)
+		].join(",");
+
+		const presetPart = [
+		EQUIVALENCE_EXPORT_ORDER
+		.indexOf(equivalenceModeStrictness),
+
+		STRATEGIC_PRESET_EXPORT_ORDER
+		.indexOf(strategicScorePreset),
+
+		RARE_TARGETING_EXPORT_ORDER
+		.indexOf(rareTargetingAggressiveness),
+
+		OVERLAP_PREFERENCE_EXPORT_ORDER
+		.indexOf(overlapPreference),
+
+		EV_PREFERENCE_EXPORT_ORDER
+		.indexOf(evPreference)
+		].join(",");
+
+		const enabledPart = encodeTieBreakerEnabledPart();
+
+		return [
+		"SV1",
+		tieBreakerPart,
+		safetyPart,
+		presetPart,
+		enabledPart
+		].join("|");
+	}
 
 
 	// ===============================
 	// T.16 EVENT BINDS
 	// ===============================
+	
+	window.toggleAdvancedSphereSettings = function() {
+		advancedSphereSettingsExpanded = !advancedSphereSettingsExpanded;
+		renderAdvancedSettings();
+	};
 
 	window.toggleTieBreakerEnabled = function(moveClass, key) {
 		if (!tieBreakerEnabled[moveClass]) {
@@ -14793,6 +14461,47 @@ newColor: grid[i]
 
 		refreshRecommendationsForAdvancedSettingChange();
 	};
+	
+	function refreshSphereSettings() {
+		tileEVStatsCache = null;
+		rareRulesCache = null;
+
+		if (appState.allBoards) {
+			installExactCaches(buildExactCaches(appState.allBoards));
+		}
+
+		refreshRecommendationsForAdvancedSettingChange();
+	}
+
+	window.setPRSphereBonus = function(value) {
+		prSphereBonus = Number(value) || 0;
+		refreshSphereSettings();
+	};
+
+	window.toggleSpherePremium = function(button) {
+		spherePremium = !spherePremium;
+
+		refreshSphereSettings();
+		renderAdvancedSettings();
+	};
+
+	window.setSphereBonusMultiplier = function(value) {
+		const parsed = Number(value);
+
+		if (!Number.isFinite(parsed)) {
+			return;
+		}
+
+		sphereBonusMultiplierPercent =
+		Math.max(0, Math.min(100, Math.floor(parsed)));
+
+		const input = document.getElementById("sphereBonusMultiplierInput");
+		if (input) {
+			input.value = String(sphereBonusMultiplierPercent);
+		}
+
+		refreshSphereSettings();
+	};
 
 	window.setRareTargetingAggressiveness = function(value) {
 		rareTargetingAggressiveness = value;
@@ -14840,7 +14549,6 @@ newColor: grid[i]
 		overlapPreference = "default";
 		evPreference = "default";
 		preMegTiebreakersEnabled = true;
-		preMegTiebreakerMode = "avoidMissEndsGame";
 
 		if (rareCount !== null) {
 			applyDefaultSafetySettingsForRareCount(
@@ -15056,29 +14764,6 @@ newColor: grid[i]
 		showGambaHighlight = !showGambaHighlight;
 		renderUI();
 	};
-
-	window.selectColor = function(c,e){
-		if(
-				e.target.classList.contains('disabled') ||
-				e.target.classList.contains('preview-disabled')
-				) return;
-
-		selectedColor = c;
-
-		document
-		.querySelectorAll('.color-btn')
-		.forEach(b => b.classList.remove('selected'));
-
-		e.target.classList.add('selected');
-
-		updateColorAvailability();
-
-		const hasStarted = grid.some(c => c !== null);
-
-		if(!hasStarted){
-			updateInfoBox();
-		}
-	}
 
 	window.setHeatmapMode = function(mode) {
 		if (heatmapPreviewActive) return;
@@ -15296,7 +14981,6 @@ day: 'numeric'
 		DOM.simulationBoardContainer = document.getElementById('simulationBoardContainer');
 		DOM.heatmapTitle = document.getElementById('heatmapTitle');
 		DOM.heatmapSubtitle = document.getElementById('heatmapSubtitle');
-		DOM.heatmapToggleBtn = null;
 		DOM.heatmapModeButtons = document.getElementById('heatmapModeButtons');
 		DOM.infoBox = document.getElementById('infoBox');
 		DOM.topInfoBox = document.getElementById('topInfoBox');
