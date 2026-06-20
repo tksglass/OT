@@ -4112,7 +4112,7 @@ type: "mcmc",
 		ctx.tracking.incomplete === 0 &&
 		ctx.tracking.unfound === 0;
 
-		if (!ctx.huntMode && noBlueRemaining) {
+		if (noBlueRemaining) {
 			currentMode = MODE.ALL_HITS;
 
 			appState = {
@@ -4124,7 +4124,7 @@ forcedTiles: computeStaticModeForcedTiles()
 			return true;
 		}
 
-		if (ctx.huntMode && allShipsDone) {
+		if (allShipsDone) {
 			currentMode = MODE.ALL_MISSES;
 
 			appState = {
@@ -9099,17 +9099,34 @@ forcedTiles: entersMissEndsGame
 	function getSafestMove(candidates, huntMode = false) {
 		if (!candidates.length) return null;
 
+		const safetyFilterAudit = {
+adjacencyRemoved: 0,
+highProbRemoved: 0,
+highProbThreshold: safeAggressiveAvoidHighProbThreshold,
+adjacencyFallback: false,
+highProbFallback: false
+		};
+
 		if (shouldApplySafeAdjacentAvoidance()) {
+			const beforeCount = candidates.length;
+
 			const nonAdjacentCandidates = candidates.filter(candidate =>
 			!couldBelongToKnownShip(candidate.i)
 			);
 
 			if (nonAdjacentCandidates.length > 0) {
+				safetyFilterAudit.adjacencyRemoved =
+				beforeCount - nonAdjacentCandidates.length;
+
 				candidates = nonAdjacentCandidates;
+			} else {
+				safetyFilterAudit.adjacencyFallback = true;
 			}
 		}
 
 		if (shouldApplyAggressiveHighProbAvoidance(huntMode)) {
+			const beforeCount = candidates.length;
+
 			const belowNinetyCandidates = candidates.filter(candidate => {
 				const displayedProbability = huntMode
 				? candidate.p
@@ -9119,9 +9136,22 @@ forcedTiles: entersMissEndsGame
 			});
 
 			if (belowNinetyCandidates.length > 0) {
+				safetyFilterAudit.highProbRemoved =
+				beforeCount - belowNinetyCandidates.length;
+
 				candidates = belowNinetyCandidates;
+			} else {
+				safetyFilterAudit.highProbFallback = true;
 			}
 		}
+
+		const attachSafetyFilterAudit = move => {
+			if (move) {
+				move.safetyFilterAudit = safetyFilterAudit;
+			}
+
+			return move;
+		};
 
 		const RISK_BAND = safeRiskBand;
 
@@ -9137,7 +9167,7 @@ forcedTiles: entersMissEndsGame
 		getPrimaryChance(candidate) >= bestPrimaryChance - RISK_BAND
 		);
 
-		if (pool.length === 1) return pool[0];
+		if (pool.length === 1) return attachSafetyFilterAudit(pool[0]);
 
 		pool.forEach(candidate => {
 			if (!candidate.undiscoveredShip) {
@@ -9190,14 +9220,16 @@ forcedTiles: entersMissEndsGame
 		const preMegResult = applyPreMegTiebreaker(pool);
 
 		if (preMegResult.winner) {
-			return preMegResult.winner;
+			return attachSafetyFilterAudit(preMegResult.winner);
 		}
 
-		return applyConfiguredTiebreakers(
+		return attachSafetyFilterAudit(
+		applyConfiguredTiebreakers(
 		preMegResult.pool,
 		"bestSafeAggressive",
 		{ huntMode },
 		preMegResult.applied ? 1 : 0
+		)
 		);
 	}
 
@@ -10260,6 +10292,40 @@ label: "Lowest tile index (could not break tie)",
 		DOM.infoBox.innerHTML = parts.join("<br>");
 	}
 
+	function getSafetyFilterAuditText(move) {
+		const audit = move?.safetyFilterAudit;
+		if (!audit) return "";
+
+		const lines = [];
+		
+		if (audit.adjacencyFallback) {
+			lines.push(
+			"Avoid Adjacency was disabled for this move."
+			);
+		}
+
+		if (audit.highProbFallback) {
+			lines.push(
+			`Avoid >${(audit.highProbThreshold * 100).toFixed(0)}% was disabled for this move.`
+			);
+		}
+
+		if (audit.adjacencyRemoved > 0) {
+			lines.push(
+			`Avoid Adjacency removed ${audit.adjacencyRemoved} candidate${audit.adjacencyRemoved === 1 ? "" : "s"}.`
+			);
+		}
+
+		if (audit.highProbRemoved > 0) {
+			lines.push(
+			`Avoid >${(audit.highProbThreshold * 100).toFixed(0)}% removed ${audit.highProbRemoved} candidate${audit.highProbRemoved === 1 ? "" : "s"}.`
+			);
+		}
+
+		if (!lines.length) return "";
+
+		return `<br><br><span style="opacity:0.75">${lines.join("<br>")}</span>`;
+	}
 
 	function getTiebreakerText(move) {
 		if (!move?.tiebreaker) return "";
@@ -11598,7 +11664,9 @@ p: rainbowChance,
 			messages.push(
 			makeCard(
 			"Best Safe Move",
-			describeMove(safest, "#22c55e") + getTiebreakerText(safest),
+			describeMove(safest, "#22c55e") +
+			getTiebreakerText(safest) +
+			getSafetyFilterAuditText(safest),
 			"info-green"
 			)
 			);
