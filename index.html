@@ -1842,6 +1842,7 @@ forcedResolution: [
 
 resolutionOpportunity: [
 		"opportunityChance",
+		"failedBranchExpectedRemaining",
 		"bestOutcomeRemaining",
 		"expectedRemaining"
 		],
@@ -1905,6 +1906,12 @@ preMeg: [
 	let tieBreakerEnabled = loadTieBreakerEnabled();
 
 	const TIEBREAKER_DEFINITIONS = {
+failedBranchExpectedRemaining: {
+label: "Lowest expected boards if opportunity fails",
+getValue: c => c.failedBranchExpectedRemaining,
+higherIsBetter: false
+		},
+
 riskAdjustedRemaining: {
 label: "Lowest risk-adjusted boards after reveal",
 getValue: c => c.riskAdjustedRemaining,
@@ -2160,7 +2167,8 @@ safeWeightedEV: 20,
 missEndsGameForcedTiles: 21,
 worstOutcomeBoards: 22,
 avoidMissEndsGame: 23,
-missEndsGameForcedEV: 24
+missEndsGameForcedEV: 24,
+failedBranchExpectedRemaining: 25
 	};
 
 	const FULL_EXACT_BOARD_STORE_LIMIT = 120000;
@@ -7046,39 +7054,39 @@ collapseMove: data.collapseMove || null
 	// ===============================
 	
 	function getUnplacedKnownForcedEntries() {
-	const forcedTiles = appState.forcedTiles;
-	if (!forcedTiles) return null;
+		const forcedTiles = appState.forcedTiles;
+		if (!forcedTiles) return null;
 
-	const forcedEntries = Object.entries(forcedTiles)
-	.map(([index, color]) => ({
-		index: Number(index),
-		color
-	}))
-	.filter(({ index, color }) =>
+		const forcedEntries = Object.entries(forcedTiles)
+		.map(([index, color]) => ({
+index: Number(index),
+			color
+		}))
+		.filter(({ index, color }) =>
 		grid[index] === null &&
 		color &&
 		!isAnonymousRareShip(color)
-	);
+		);
 
-	if (!forcedEntries.length) return null;
+		if (!forcedEntries.length) return null;
 
-	const unresolvedTiles = grid
-	.map((cell, index) => ({ cell, index }))
-	.filter(({ cell }) => cell === null);
+		const unresolvedTiles = grid
+		.map((cell, index) => ({ cell, index }))
+		.filter(({ cell }) => cell === null);
 
-	const allUnresolvedKnown = unresolvedTiles.every(({ index }) =>
+		const allUnresolvedKnown = unresolvedTiles.every(({ index }) =>
 		forcedTiles[index]
-	);
+		);
 
-	if (!allUnresolvedKnown) return null;
+		if (!allUnresolvedKnown) return null;
 
-	return {
-		forcedTiles,
-		forcedEntries,
-		forcedHits: forcedEntries.filter(({ color }) => color !== "miss"),
-		forcedMisses: forcedEntries.filter(({ color }) => color === "miss")
-	};
-}
+		return {
+			forcedTiles,
+			forcedEntries,
+forcedHits: forcedEntries.filter(({ color }) => color !== "miss"),
+forcedMisses: forcedEntries.filter(({ color }) => color === "miss")
+		};
+	}
 	
 	function getAutoFillForcedHits() {
 		if (!appState.forcedTiles) return [];
@@ -7227,6 +7235,7 @@ opportunityType: "forcedResolution",
 opportunityChance: forcedOpportunity.opportunityChance,
 bestOutcomeRemaining: forcedOpportunity.bestOutcomeRemaining,
 bestOutcome: forcedOpportunity.bestOutcome,
+failedBranchExpectedRemaining: forcedOpportunity.failedBranchExpectedRemaining,
 expectedRemaining: forcedOpportunity.expectedRemaining
 			};
 		}
@@ -7251,6 +7260,7 @@ opportunityType: "finalDecisionSetup",
 opportunityChance: finalDecisionOpportunity.opportunityChance,
 bestOutcomeRemaining: finalDecisionOpportunity.bestOutcomeRemaining,
 bestOutcome: finalDecisionOpportunity.bestOutcome,
+failedBranchExpectedRemaining: finalDecisionOpportunity.failedBranchExpectedRemaining,
 expectedRemaining: finalDecisionOpportunity.expectedRemaining
 		};
 	}
@@ -7267,6 +7277,9 @@ expectedRemaining: finalDecisionOpportunity.expectedRemaining
 		let bestOutcomeRemaining = Infinity;
 		let bestOutcome = null;
 		let expectedRemaining = 0;
+
+		let failedBranchChance = 0;
+		let failedBranchExpectedRemaining = 0;
 
 		for (const outcome in outcomeSets) {
 			const outcomeBoardSet = boardSet & outcomeSets[outcome];
@@ -7287,23 +7300,32 @@ expectedRemaining: finalDecisionOpportunity.expectedRemaining
 			)
 			: count <= 2;
 
-			if (!createsOpportunity) continue;
+			if (createsOpportunity) {
+				opportunityChance += pOutcome;
 
-			opportunityChance += pOutcome;
-
-			if (count < bestOutcomeRemaining) {
-				bestOutcomeRemaining = count;
-				bestOutcome = outcome;
+				if (count < bestOutcomeRemaining) {
+					bestOutcomeRemaining = count;
+					bestOutcome = outcome;
+				}
+			} else {
+				failedBranchChance += pOutcome;
+				failedBranchExpectedRemaining += pOutcome * count;
 			}
 		}
 
 		if (opportunityChance <= 0) return null;
 
+		failedBranchExpectedRemaining =
+		failedBranchChance > 0
+		? failedBranchExpectedRemaining / failedBranchChance
+		: 0;
+
 		return {
 			opportunityChance,
 			bestOutcomeRemaining,
 			bestOutcome,
-			expectedRemaining
+			expectedRemaining,
+			failedBranchExpectedRemaining
 		};
 	}
 
@@ -7771,12 +7793,12 @@ weightedEV: getCandidateWeightedEV(i)
 	}
 
 	function appendKnownSafeBlueBeforeForcedHitsCard(messages, ctx) {
-if (ctx.missEndsGame) return false;
+		if (ctx.missEndsGame) return false;
 
-const knownForced = getUnplacedKnownForcedEntries();
-if (!knownForced) return false;
+		const knownForced = getUnplacedKnownForcedEntries();
+		if (!knownForced) return false;
 
-const { forcedHits, forcedMisses } = knownForced;
+		const { forcedHits, forcedMisses } = knownForced;
 
 		if (!forcedHits.length || !forcedMisses.length) return false;
 
@@ -7811,10 +7833,10 @@ const { forcedHits, forcedMisses } = knownForced;
 	}
 
 	function handleKnownBoardInfo(messages) {
-const knownForced = getUnplacedKnownForcedEntries();
-if (!knownForced) return false;
+		const knownForced = getUnplacedKnownForcedEntries();
+		if (!knownForced) return false;
 
-const { forcedHits, forcedMisses } = knownForced;
+		const { forcedHits, forcedMisses } = knownForced;
 
 		const title =
 		forcedMisses.length === 0
