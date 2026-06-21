@@ -2343,6 +2343,7 @@ key: cells[0],
 	let sphereBonusMultiplierPercent = 0;
 	let advancedSphereSettingsExpanded = false;
 	let safeAvoidAdjacentKnown = false;
+	let safeOverrideEnabled = true;
 	let safeAggressiveAvoidHighProb = false;
 	let safeAggressiveAvoidHighProbThreshold = 0.90;
 
@@ -6776,6 +6777,7 @@ p: probs[firstTile],
 		}
 
 		if (
+				safeOverrideEnabled &&
 				!huntMode &&
 				guaranteed.p === 0 &&
 				shouldPreferClarityOverGuaranteedBlue()
@@ -8248,9 +8250,9 @@ weightedEV: getCandidateWeightedEV(tile)
 		const guaranteedMiss = candidates.find(c => c.p === 0);
 
 		if (!huntMode) {
-			const { hits } = getHitMissCounts();
+			const { hits, misses } = getHitMissCounts();
 
-			if (hits >= 5) {
+			if (hits >= 5 || misses < 3) {
 				return null;
 			}
 
@@ -9448,6 +9450,19 @@ label: "Lowest tile index (could not break tie)",
 			</select>
 			`,
 			"Controls how many near-equivalent safe candidates stay eligible before tie breakers are applied."
+			)}
+		
+		${renderSettingRow(
+			`
+			<button
+			id="safeOverrideToggle"
+			class="${safeOverrideEnabled ? "active-btn" : ""}"
+			onclick="toggleSafeOverride(this)"
+			>
+			Safe Override Move
+			</button>
+			`,
+			"Allows Safe Mode to replace guaranteed blue recommendations with a board-clarifying move if you have less than 3 misses."
 			)}
 
 		${renderSettingRow(
@@ -14073,7 +14088,8 @@ colorMasks: { ...shipMasks }
 		rareTargetingAggressiveness !== "default" ||
 		overlapPreference !== "default" ||
 		evPreference !== "default" ||
-		preMegTiebreakersEnabled !== true
+		preMegTiebreakersEnabled !== true ||
+		safeOverrideEnabled !== true
 		);
 	}
 
@@ -14327,6 +14343,9 @@ newColor: grid[i]
 			? "any"
 			: RESOLUTION_OPPORTUNITY_STYLE_EXPORT_ORDER[safety[6]] ||
 			"any";
+			
+			safeOverrideEnabled =
+			safety.length < 8 ? true : safety[7] === 1;
 
 			const presets = presetPart.split(",").map(Number);
 
@@ -14371,7 +14390,8 @@ newColor: grid[i]
 		safeAggressiveAvoidHighProb ? 1 : 0,
 		preMegTiebreakersEnabled ? 1 : 0,
 		Math.round(safeAggressiveAvoidHighProbThreshold * 100),
-		RESOLUTION_OPPORTUNITY_STYLE_EXPORT_ORDER.indexOf(resolutionOpportunityStyle)
+		RESOLUTION_OPPORTUNITY_STYLE_EXPORT_ORDER.indexOf(resolutionOpportunityStyle),
+		safeOverrideEnabled ? 1 : 0
 		].join(",");
 
 		const presetPart = [
@@ -14406,6 +14426,18 @@ newColor: grid[i]
 	// ===============================
 	// T.16 EVENT BINDS
 	// ===============================
+	
+	window.toggleSafeOverride = function(btn) {
+		safeOverrideEnabled = !safeOverrideEnabled;
+
+		btn.classList.toggle('active-btn', safeOverrideEnabled);
+
+		updateTieBreakerNotice();
+
+		runSimulation();
+		renderUI();
+		updateColorAvailability();
+	};
 	
 	window.toggleAdvancedSphereSettings = function() {
 		advancedSphereSettingsExpanded = !advancedSphereSettingsExpanded;
@@ -14571,6 +14603,7 @@ newColor: grid[i]
 		overlapPreference = "default";
 		evPreference = "default";
 		preMegTiebreakersEnabled = true;
+		safeOverrideEnabled = true;
 
 		if (rareCount !== null) {
 			applyDefaultSafetySettingsForRareCount(
