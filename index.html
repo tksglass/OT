@@ -2360,7 +2360,8 @@ modeButtons: null
 	let rareRulesCache = null;
 	let tilePickerLegalityCache = new Map();
 
-	let advancedSafetySettingsExpanded = false;
+	let advancedSafeMoveFiltersExpanded = false;
+	let advancedRecommendationBehaviorExpanded = false;
 	let advancedStrategicSettingsExpanded = false;
 	let advancedTieBreakersExpanded = false;
 
@@ -9384,58 +9385,13 @@ label: "Lowest tile index (could not break tie)",
 		body
 		);
 	}
-
-	function renderAdvancedSafetySettings() {
-		const riskValue = String(Math.round(safeRiskBand * 100));
-		const resolutionValue = String(
+function renderAdvancedSafetySettings() {
+	const riskValue = String(Math.round(safeRiskBand * 100));
+	const resolutionValue = String(
 		Math.round(resolutionOpportunityThreshold * 100)
-		);
+	);
 
-		const body = `
-		${renderSettingRow(
-			`
-			<select
-			id="resolutionOpportunityThresholdSelect"
-			onchange="setResolutionOpportunityThreshold(Number(this.value))"
-			>
-			${renderOption("5", "Resolution Opportunity: 5%", resolutionValue)}
-			${renderOption("10", "Resolution Opportunity: 10%", resolutionValue)}
-			${renderOption("15", "Resolution Opportunity: 15%", resolutionValue)}
-			${renderOption("20", "Resolution Opportunity: 20%", resolutionValue)}
-			</select>
-			`,
-			"Minimum chance required before the Resolution Opportunity card appears."
-			)}
-		
-		${renderSettingRow(
-			`
-			<select
-			id="resolutionOpportunityStyleSelect"
-			onchange="setResolutionOpportunityStyle(this.value)"
-			>
-			${renderOption("any", "Any resolving outcome", resolutionOpportunityStyle)}
-			${renderOption("forcedResolution", "Forced Resolution only", resolutionOpportunityStyle)}
-			${renderOption("finalDecision", "Final Decision only", resolutionOpportunityStyle)}
-			</select>
-			`,
-			"Controls which kind of resolving branch can trigger the Resolution Opportunity card."
-			)}
-
-		${renderSettingRow(
-			`
-			<select
-			id="equivalenceModeStrictnessSelect"
-			onchange="setEquivalenceModeStrictness(this.value)"
-			>
-			${renderOption("default", "Identical Probabilities", equivalenceModeStrictness)}
-			${renderOption("strictEV", "Same EV", equivalenceModeStrictness)}
-			${renderOption("strictCollapse", "Same reduction", equivalenceModeStrictness)}
-			${renderOption("strictEVAndCollapse", "Same reduction AND same EV", equivalenceModeStrictness)}
-			</select>
-			`,
-			"Controls when Equivalence Mode is allowed to override normal recommendations."
-			)}
-
+	const safeMoveFiltersBody = `
 		${renderSettingRow(
 			`
 			<select
@@ -9450,33 +9406,7 @@ label: "Lowest tile index (could not break tie)",
 			</select>
 			`,
 			"Controls how many near-equivalent safe candidates stay eligible before tie breakers are applied."
-			)}
-		
-		${renderSettingRow(
-			`
-			<button
-			id="safeOverrideToggle"
-			class="${safeOverrideEnabled ? "active-btn" : ""}"
-			onclick="toggleSafeOverride(this)"
-			>
-			Safe Override Move
-			</button>
-			`,
-			"Allows Safe Mode to replace guaranteed blue recommendations with a board-clarifying move if you have less than 3 misses."
-			)}
-
-		${renderSettingRow(
-			`
-			<button
-			id="preMegTiebreakersToggle"
-			class="${preMegTiebreakersEnabled ? "active-btn" : ""}"
-			onclick="togglePreMegTiebreakers(this)"
-			>
-			Pre-MEG Tiebreaker 🦈
-			</button>
-			`,
-			"If a move could cause the next Miss to End the Game (MEG), apply the configurable Pre-MEG tiebreaker order."
-			)}
+		)}
 
 		${renderSettingRow(
 			`
@@ -9488,8 +9418,8 @@ label: "Lowest tile index (could not break tie)",
 			Avoid adjacency
 			</button>
 			`,
-			"Avoids candidates that could connect to an already-known ship when another valid option exists. Safe mode tends to do this naturally."
-			)}
+			"Avoids candidates that could connect to an already-known ship when another valid option exists."
+		)}
 
 		${renderSettingRow(
 			`
@@ -9515,17 +9445,98 @@ label: "Lowest tile index (could not break tie)",
 			</select>
 			</div>
 			`,
-			"In Aggressive mode, avoids very high-probability hit tiles when a miss does not end the game. "
-			)}
-		`;
+			"In Aggressive mode, avoids very high-probability hit tiles when a miss does not end the game."
+		)}
+	`;
 
-		return renderCollapsibleAdvancedSection(
-		"Safety Settings",
-		advancedSafetySettingsExpanded,
-		"toggleAdvancedSafetySettings",
-		body
-		);
-	}
+	const recommendationBehaviorBody = `
+		${renderSettingRow(
+			`
+			<button
+			id="safeOverrideToggle"
+			class="${safeOverrideEnabled ? "active-btn" : ""}"
+			onclick="toggleSafeOverride(this)"
+			>
+			Safe Override Move
+			</button>
+			`,
+			"Allows Safe Mode to replace guaranteed blue recommendations with a board-clarifying move."
+		)}
+
+		${renderSettingRow(
+			`
+			<select
+			id="resolutionOpportunityThresholdSelect"
+			onchange="setResolutionOpportunityThreshold(Number(this.value))"
+			>
+			${renderOption("5", "Resolution Opportunity: 5%", resolutionValue)}
+			${renderOption("10", "Resolution Opportunity: 10%", resolutionValue)}
+			${renderOption("15", "Resolution Opportunity: 15%", resolutionValue)}
+			${renderOption("20", "Resolution Opportunity: 20%", resolutionValue)}
+			</select>
+			`,
+			"Minimum chance required before the Resolution Opportunity card appears."
+		)}
+
+		${renderSettingRow(
+			`
+			<select
+			id="resolutionOpportunityStyleSelect"
+			onchange="setResolutionOpportunityStyle(this.value)"
+			>
+			${renderOption("any", "Any resolving outcome", resolutionOpportunityStyle)}
+			${renderOption("forcedResolution", "Forced Resolution only", resolutionOpportunityStyle)}
+			${renderOption("finalDecision", "Final Decision only", resolutionOpportunityStyle)}
+			</select>
+			`,
+			"Controls which kind of resolving branch can trigger the Resolution Opportunity card."
+		)}
+
+		${renderSettingRow(
+			`
+			<select
+			id="equivalenceModeStrictnessSelect"
+			onchange="setEquivalenceModeStrictness(this.value)"
+			>
+			${renderOption("default", "Identical Probabilities", equivalenceModeStrictness)}
+			${renderOption("strictEV", "Same EV", equivalenceModeStrictness)}
+			${renderOption("strictCollapse", "Same reduction", equivalenceModeStrictness)}
+			${renderOption("strictEVAndCollapse", "Same reduction AND same EV", equivalenceModeStrictness)}
+			</select>
+			`,
+			"Controls when Equivalence Mode is allowed to override normal recommendations."
+		)}
+
+		${renderSettingRow(
+			`
+			<button
+			id="preMegTiebreakersToggle"
+			class="${preMegTiebreakersEnabled ? "active-btn" : ""}"
+			onclick="togglePreMegTiebreakers(this)"
+			>
+			Pre-MEG Tiebreaker 🦈
+			</button>
+			`,
+			"If a move could cause the next Miss to End the Game, apply the configurable Pre-MEG tiebreaker order."
+		)}
+	`;
+
+	return `
+	${renderCollapsibleAdvancedSection(
+		"Safe Move Filters",
+		advancedSafeMoveFiltersExpanded,
+		"toggleAdvancedSafeMoveFilters",
+		safeMoveFiltersBody
+	)}
+
+	${renderCollapsibleAdvancedSection(
+		"Recommendation Behavior",
+		advancedRecommendationBehaviorExpanded,
+		"toggleAdvancedRecommendationBehavior",
+		recommendationBehaviorBody
+	)}
+`;
+}
 
 	function renderAdvancedSettings() {
 		updateTieBreakerNotice();
@@ -14427,6 +14438,20 @@ newColor: grid[i]
 	// T.16 EVENT BINDS
 	// ===============================
 	
+	window.toggleAdvancedSafeMoveFilters = function() {
+	advancedSafeMoveFiltersExpanded =
+	!advancedSafeMoveFiltersExpanded;
+
+	renderAdvancedSettings();
+};
+
+window.toggleAdvancedRecommendationBehavior = function() {
+	advancedRecommendationBehaviorExpanded =
+	!advancedRecommendationBehaviorExpanded;
+
+	renderAdvancedSettings();
+};
+	
 	window.toggleSafeOverride = function(btn) {
 		safeOverrideEnabled = !safeOverrideEnabled;
 
@@ -14648,13 +14673,6 @@ newColor: grid[i]
 		? "Advanced settings loaded."
 		: "Invalid advanced settings code."
 		);
-	};
-
-	window.toggleAdvancedSafetySettings = function() {
-		advancedSafetySettingsExpanded =
-		!advancedSafetySettingsExpanded;
-
-		renderAdvancedSettings();
 	};
 
 	window.toggleAdvancedStrategicSettings = function() {
