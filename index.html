@@ -9418,7 +9418,7 @@ function renderAdvancedSafetySettings() {
 			Avoid adjacency
 			</button>
 			`,
-			"Avoids candidates that could connect to an already-known ship when another valid option exists."
+			"Avoids candidates that could connect to an already-known ship when another valid option exists. Safe mode tends to do this naturally."
 		)}
 
 		${renderSettingRow(
@@ -9460,7 +9460,7 @@ function renderAdvancedSafetySettings() {
 			Safe Override Move
 			</button>
 			`,
-			"Allows Safe Mode to replace guaranteed blue recommendations with a board-clarifying move."
+			"Allows Safe Mode to replace guaranteed blue recommendations with a board-clarifying move if you have less than 3 misses."
 		)}
 
 		${renderSettingRow(
@@ -9517,7 +9517,7 @@ function renderAdvancedSafetySettings() {
 			Pre-MEG Tiebreaker 🦈
 			</button>
 			`,
-			"If a move could cause the next Miss to End the Game, apply the configurable Pre-MEG tiebreaker order."
+			"If a move could cause the next Miss to End the Game (MEG), apply the configurable Pre-MEG tiebreaker order."
 		)}
 	`;
 
