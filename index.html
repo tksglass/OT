@@ -2343,7 +2343,7 @@ key: cells[0],
 	let sphereBonusMultiplierPercent = 0;
 	let advancedSphereSettingsExpanded = false;
 	let safeAvoidAdjacentKnown = false;
-	let safeOverrideEnabled = true;
+	let safeOverrideEnabled = false;
 	let safeAggressiveAvoidHighProb = false;
 	let safeAggressiveAvoidHighProbThreshold = 0.90;
 
@@ -14089,7 +14089,7 @@ colorMasks: { ...shipMasks }
 		overlapPreference !== "default" ||
 		evPreference !== "default" ||
 		preMegTiebreakersEnabled !== true ||
-		safeOverrideEnabled !== true
+		safeOverrideEnabled !== false
 		);
 	}
 
@@ -14345,7 +14345,7 @@ newColor: grid[i]
 			"any";
 			
 			safeOverrideEnabled =
-			safety.length < 8 ? true : safety[7] === 1;
+			safety.length < 8 ? false : safety[7] === 1;
 
 			const presets = presetPart.split(",").map(Number);
 
@@ -14603,7 +14603,7 @@ newColor: grid[i]
 		overlapPreference = "default";
 		evPreference = "default";
 		preMegTiebreakersEnabled = true;
-		safeOverrideEnabled = true;
+		safeOverrideEnabled = false;
 
 		if (rareCount !== null) {
 			applyDefaultSafetySettingsForRareCount(
