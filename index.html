@@ -1579,7 +1579,18 @@ id="simulationBoardContainer"
 class="board-container"
 style="display:none;"
 >
+<div class="playboard-header">
 <h3>Simulated Board</h3>
+
+<button
+id="simulationResetBtn"
+class="auto-hits-btn"
+onclick="resetSimulationTestBoard()"
+>
+New Board
+</button>
+</div>
+
 <div class="board-wrapper">
 <div id="simulationBoard" class="board"></div>
 </div>
@@ -2172,6 +2183,8 @@ failedBranchExpectedRemaining: 25
 	};
 
 	const FULL_EXACT_BOARD_STORE_LIMIT = 120000;
+	
+	const ADVANCED_SETTINGS_STORAGE_KEY = "otAdvancedSettingsV1";
 
 	// ===============================
 	// T.01A CONSTANT BUILDERS
@@ -2346,6 +2359,7 @@ key: cells[0],
 	let safeOverrideEnabled = false;
 	let safeAggressiveAvoidHighProb = false;
 	let safeAggressiveAvoidHighProbThreshold = 0.90;
+	let advancedSettingsLoadedFromStorage = false;
 
 	let simulationMode = false;
 	let simulationBoard = null;
@@ -2377,6 +2391,8 @@ strategicAggressive: false,
 strategicSafe: false,
 preMeg: false
 	};
+	
+	loadAdvancedSettingsFromStorage();
 
 	// ===============================
 	// T.03 ACTIONS
@@ -9385,13 +9401,13 @@ label: "Lowest tile index (could not break tie)",
 		body
 		);
 	}
-function renderAdvancedSafetySettings() {
-	const riskValue = String(Math.round(safeRiskBand * 100));
-	const resolutionValue = String(
+	function renderAdvancedSafetySettings() {
+		const riskValue = String(Math.round(safeRiskBand * 100));
+		const resolutionValue = String(
 		Math.round(resolutionOpportunityThreshold * 100)
-	);
+		);
 
-	const safeMoveFiltersBody = `
+		const safeMoveFiltersBody = `
 		${renderSettingRow(
 			`
 			<select
@@ -9406,7 +9422,7 @@ function renderAdvancedSafetySettings() {
 			</select>
 			`,
 			"Controls how many near-equivalent safe candidates stay eligible before tie breakers are applied."
-		)}
+			)}
 
 		${renderSettingRow(
 			`
@@ -9418,8 +9434,8 @@ function renderAdvancedSafetySettings() {
 			Avoid adjacency
 			</button>
 			`,
-			"Avoids candidates that could connect to an already-known ship when another valid option exists. Safe mode tends to do this naturally."
-		)}
+			"Avoids candidates that could connect to an already-known ship when another valid option exists."
+			)}
 
 		${renderSettingRow(
 			`
@@ -9446,10 +9462,10 @@ function renderAdvancedSafetySettings() {
 			</div>
 			`,
 			"In Aggressive mode, avoids very high-probability hit tiles when a miss does not end the game."
-		)}
-	`;
+			)}
+		`;
 
-	const recommendationBehaviorBody = `
+		const recommendationBehaviorBody = `
 		${renderSettingRow(
 			`
 			<button
@@ -9460,8 +9476,8 @@ function renderAdvancedSafetySettings() {
 			Safe Override Move
 			</button>
 			`,
-			"Allows Safe Mode to replace guaranteed blue recommendations with a board-clarifying move if you have less than 3 misses."
-		)}
+			"Allows Safe Mode to replace guaranteed blue recommendations with a board-clarifying move."
+			)}
 
 		${renderSettingRow(
 			`
@@ -9476,7 +9492,7 @@ function renderAdvancedSafetySettings() {
 			</select>
 			`,
 			"Minimum chance required before the Resolution Opportunity card appears."
-		)}
+			)}
 
 		${renderSettingRow(
 			`
@@ -9490,7 +9506,7 @@ function renderAdvancedSafetySettings() {
 			</select>
 			`,
 			"Controls which kind of resolving branch can trigger the Resolution Opportunity card."
-		)}
+			)}
 
 		${renderSettingRow(
 			`
@@ -9505,7 +9521,7 @@ function renderAdvancedSafetySettings() {
 			</select>
 			`,
 			"Controls when Equivalence Mode is allowed to override normal recommendations."
-		)}
+			)}
 
 		${renderSettingRow(
 			`
@@ -9517,26 +9533,26 @@ function renderAdvancedSafetySettings() {
 			Pre-MEG Tiebreaker 🦈
 			</button>
 			`,
-			"If a move could cause the next Miss to End the Game (MEG), apply the configurable Pre-MEG tiebreaker order."
-		)}
-	`;
+			"If a move could cause the next Miss to End the Game, apply the configurable Pre-MEG tiebreaker order."
+			)}
+		`;
 
-	return `
-	${renderCollapsibleAdvancedSection(
-		"Safe Move Filters",
-		advancedSafeMoveFiltersExpanded,
-		"toggleAdvancedSafeMoveFilters",
-		safeMoveFiltersBody
-	)}
+		return `
+		${renderCollapsibleAdvancedSection(
+			"Safe Move Filters",
+			advancedSafeMoveFiltersExpanded,
+			"toggleAdvancedSafeMoveFilters",
+			safeMoveFiltersBody
+			)}
 
-	${renderCollapsibleAdvancedSection(
-		"Recommendation Behavior",
-		advancedRecommendationBehaviorExpanded,
-		"toggleAdvancedRecommendationBehavior",
-		recommendationBehaviorBody
-	)}
-`;
-}
+		${renderCollapsibleAdvancedSection(
+			"Recommendation Behavior",
+			advancedRecommendationBehaviorExpanded,
+			"toggleAdvancedRecommendationBehavior",
+			recommendationBehaviorBody
+			)}
+		`;
+	}
 
 	function renderAdvancedSettings() {
 		updateTieBreakerNotice();
@@ -13971,25 +13987,30 @@ colorMasks: { ...shipMasks }
 		return enabled;
 	}
 
-	function loadTieBreakerEnabled() {
+	function sanitizeTieBreakerEnabled(saved) {
 		const defaults = createDefaultTieBreakerEnabled();
 
-		try {
-			const saved = JSON.parse(
-			localStorage.getItem("otTieBreakerEnabled") || "{}"
-			);
-
-			for (const moveClass in defaults) {
-				for (const key in defaults[moveClass]) {
-					if (typeof saved?.[moveClass]?.[key] === "boolean") {
-						defaults[moveClass][key] = saved[moveClass][key];
-					}
+		for (const moveClass in defaults) {
+			for (const key in defaults[moveClass]) {
+				if (typeof saved?.[moveClass]?.[key] === "boolean") {
+					defaults[moveClass][key] = saved[moveClass][key];
 				}
 			}
-		} catch {
 		}
 
 		return defaults;
+	}
+
+	function loadTieBreakerEnabled() {
+		try {
+			return sanitizeTieBreakerEnabled(
+			JSON.parse(
+			localStorage.getItem("otTieBreakerEnabled") || "{}"
+			)
+			);
+		} catch {
+			return createDefaultTieBreakerEnabled();
+		}
 	}
 
 	function encodeTieBreakerEnabledPart() {
@@ -14031,37 +14052,44 @@ colorMasks: { ...shipMasks }
 		"otTieBreakerEnabled",
 		JSON.stringify(tieBreakerEnabled)
 		);
+
+		saveAdvancedSettingsToStorage();
 	}
 
-	function loadTieBreakerConfig() {
+	function sanitizeTieBreakerConfig(saved) {
 		const defaults = structuredClone(DEFAULT_TIEBREAKER_CONFIG);
 
-		try {
-			const saved = JSON.parse(
-			localStorage.getItem("otTieBreakerConfig") || "{}"
+		for (const moveClass in defaults) {
+			if (!Array.isArray(saved?.[moveClass])) continue;
+
+			const allowed = new Set(defaults[moveClass]);
+
+			const cleaned = saved[moveClass].filter(key =>
+			allowed.has(key)
 			);
 
-			for (const moveClass in defaults) {
-				if (!Array.isArray(saved[moveClass])) continue;
-
-				const allowed = new Set(defaults[moveClass]);
-
-				const cleaned = saved[moveClass].filter(key =>
-				allowed.has(key)
-				);
-
-				for (const key of defaults[moveClass]) {
-					if (!cleaned.includes(key)) {
-						cleaned.push(key);
-					}
+			for (const key of defaults[moveClass]) {
+				if (!cleaned.includes(key)) {
+					cleaned.push(key);
 				}
-
-				defaults[moveClass] = cleaned;
 			}
-		} catch {
+
+			defaults[moveClass] = cleaned;
 		}
 
 		return defaults;
+	}
+
+	function loadTieBreakerConfig() {
+		try {
+			return sanitizeTieBreakerConfig(
+			JSON.parse(
+			localStorage.getItem("otTieBreakerConfig") || "{}"
+			)
+			);
+		} catch {
+			return structuredClone(DEFAULT_TIEBREAKER_CONFIG);
+		}
 	}
 
 	function saveTieBreakerConfig() {
@@ -14069,6 +14097,158 @@ colorMasks: { ...shipMasks }
 		"otTieBreakerConfig",
 		JSON.stringify(tieBreakerConfig)
 		);
+
+		saveAdvancedSettingsToStorage();
+	}
+	
+	function saveAdvancedSettingsToStorage() {
+		try {
+			localStorage.setItem(
+			ADVANCED_SETTINGS_STORAGE_KEY,
+			JSON.stringify({
+				safeRiskBand,
+				resolutionOpportunityThreshold,
+				resolutionOpportunityStyle,
+				equivalenceModeStrictness,
+				strategicScorePreset,
+				rareTargetingAggressiveness,
+				overlapPreference,
+				evPreference,
+				preMegTiebreakersEnabled,
+				safeOverrideEnabled,
+				safeAvoidAdjacentKnown,
+				safeAggressiveAvoidHighProb,
+				safeAggressiveAvoidHighProbThreshold,
+				prSphereBonus,
+				spherePremium,
+				sphereBonusMultiplierPercent,
+				tieBreakerConfig,
+				tieBreakerEnabled
+			})
+			);
+		} catch {
+		}
+	}
+
+	function loadAdvancedSettingsFromStorage() {
+		try {
+			const raw = localStorage.getItem(
+			ADVANCED_SETTINGS_STORAGE_KEY
+			);
+
+			if (!raw) return;
+
+			const saved = JSON.parse(raw);
+
+			if (Number.isFinite(saved.safeRiskBand)) {
+				safeRiskBand = saved.safeRiskBand;
+			}
+
+			if (Number.isFinite(saved.resolutionOpportunityThreshold)) {
+				resolutionOpportunityThreshold =
+				saved.resolutionOpportunityThreshold;
+			}
+
+			if (
+					RESOLUTION_OPPORTUNITY_STYLE_EXPORT_ORDER
+					.includes(saved.resolutionOpportunityStyle)
+					) {
+				resolutionOpportunityStyle =
+				saved.resolutionOpportunityStyle;
+			}
+
+			if (
+					EQUIVALENCE_EXPORT_ORDER
+					.includes(saved.equivalenceModeStrictness)
+					) {
+				equivalenceModeStrictness =
+				saved.equivalenceModeStrictness;
+			}
+
+			if (
+					STRATEGIC_PRESET_EXPORT_ORDER
+					.includes(saved.strategicScorePreset)
+					) {
+				strategicScorePreset = saved.strategicScorePreset;
+			}
+
+			if (
+					RARE_TARGETING_EXPORT_ORDER
+					.includes(saved.rareTargetingAggressiveness)
+					) {
+				rareTargetingAggressiveness =
+				saved.rareTargetingAggressiveness;
+			}
+
+			if (
+					OVERLAP_PREFERENCE_EXPORT_ORDER
+					.includes(saved.overlapPreference)
+					) {
+				overlapPreference = saved.overlapPreference;
+			}
+
+			if (
+					EV_PREFERENCE_EXPORT_ORDER
+					.includes(saved.evPreference)
+					) {
+				evPreference = saved.evPreference;
+			}
+
+			if (typeof saved.preMegTiebreakersEnabled === "boolean") {
+				preMegTiebreakersEnabled =
+				saved.preMegTiebreakersEnabled;
+			}
+
+			if (typeof saved.safeOverrideEnabled === "boolean") {
+				safeOverrideEnabled = saved.safeOverrideEnabled;
+			}
+
+			if (typeof saved.safeAvoidAdjacentKnown === "boolean") {
+				safeAvoidAdjacentKnown = saved.safeAvoidAdjacentKnown;
+			}
+
+			if (typeof saved.safeAggressiveAvoidHighProb === "boolean") {
+				safeAggressiveAvoidHighProb =
+				saved.safeAggressiveAvoidHighProb;
+			}
+
+			if (Number.isFinite(saved.safeAggressiveAvoidHighProbThreshold)) {
+				safeAggressiveAvoidHighProbThreshold =
+				saved.safeAggressiveAvoidHighProbThreshold;
+			}
+
+			if (Number.isFinite(saved.prSphereBonus)) {
+				prSphereBonus = saved.prSphereBonus;
+			}
+
+			if (typeof saved.spherePremium === "boolean") {
+				spherePremium = saved.spherePremium;
+			}
+
+			if (Number.isFinite(saved.sphereBonusMultiplierPercent)) {
+				sphereBonusMultiplierPercent =
+				Math.max(
+				0,
+				Math.min(
+				100,
+				Math.floor(saved.sphereBonusMultiplierPercent)
+				)
+				);
+			}
+
+			if (saved.tieBreakerConfig) {
+				tieBreakerConfig =
+				sanitizeTieBreakerConfig(saved.tieBreakerConfig);
+			}
+
+			if (saved.tieBreakerEnabled) {
+				tieBreakerEnabled =
+				sanitizeTieBreakerEnabled(saved.tieBreakerEnabled);
+			}
+
+			advancedSettingsLoadedFromStorage = true;
+		} catch {
+		}
 	}
 
 	function hasNonDefaultAdvancedSettings() {
@@ -14374,6 +14554,8 @@ newColor: grid[i]
 
 			evPreference =
 			EV_PREFERENCE_EXPORT_ORDER[presets[4]] || "default";
+			
+			saveAdvancedSettingsToStorage();
 
 			renderAdvancedSettings();
 			updateTieBreakerNotice();
@@ -14438,22 +14620,57 @@ newColor: grid[i]
 	// T.16 EVENT BINDS
 	// ===============================
 	
+	window.resetSimulationTestBoard = function() {
+	if (!simulationMode) return;
+	if (rareCount === null) return;
+
+	const nextBoard = generateRandomSimulationBoard();
+
+	if (!nextBoard) {
+		showError("Could not generate a valid simulation board.");
+		return;
+	}
+
+	grid = Array(25).fill(null);
+	selectedColor = null;
+	history = [];
+	moves = [];
+	redoStack = [];
+	currentMode = MODE.NORMAL;
+	appState = createEmptyAppState();
+
+	simulationBoard = nextBoard;
+	simulationRevealed = Array(25).fill(false);
+
+	clearPlacementsCache();
+	clearRecommendations();
+
+	render();
+	renderSimulationBoard();
+	resetHeatmapState();
+	refreshAfterAnalysisStateChange();
+	updateBoardLock();
+	updateColorAvailability();
+	renderUI();
+};
+	
 	window.toggleAdvancedSafeMoveFilters = function() {
-	advancedSafeMoveFiltersExpanded =
-	!advancedSafeMoveFiltersExpanded;
+		advancedSafeMoveFiltersExpanded =
+		!advancedSafeMoveFiltersExpanded;
 
-	renderAdvancedSettings();
-};
+		renderAdvancedSettings();
+	};
 
-window.toggleAdvancedRecommendationBehavior = function() {
-	advancedRecommendationBehaviorExpanded =
-	!advancedRecommendationBehaviorExpanded;
+	window.toggleAdvancedRecommendationBehavior = function() {
+		advancedRecommendationBehaviorExpanded =
+		!advancedRecommendationBehaviorExpanded;
 
-	renderAdvancedSettings();
-};
+		renderAdvancedSettings();
+	};
 	
 	window.toggleSafeOverride = function(btn) {
 		safeOverrideEnabled = !safeOverrideEnabled;
+		saveAdvancedSettingsToStorage();
 
 		btn.classList.toggle('active-btn', safeOverrideEnabled);
 
@@ -14486,12 +14703,14 @@ window.toggleAdvancedRecommendationBehavior = function() {
 	window.setResolutionOpportunityStyle = function(value) {
 		resolutionOpportunityStyle = value;
 		updateTieBreakerNotice();
+		saveAdvancedSettingsToStorage();
 
 		refreshRecommendationsForAdvancedSettingChange();
 	};
 
 	window.setSafeAggressiveAvoidHighProbThreshold = function(value) {
 		safeAggressiveAvoidHighProbThreshold = value / 100;
+		saveAdvancedSettingsToStorage();
 
 		if (appState.probs) {
 			highlightRecommendations(appState.probs);
@@ -14506,6 +14725,7 @@ window.toggleAdvancedRecommendationBehavior = function() {
 	window.togglePreMegTiebreakers = function(btn) {
 		preMegTiebreakersEnabled =
 		!preMegTiebreakersEnabled;
+		saveAdvancedSettingsToStorage();
 
 		btn.classList.toggle(
 		'active-btn',
@@ -14530,6 +14750,7 @@ window.toggleAdvancedRecommendationBehavior = function() {
 	window.setOverlapPreference = function(value) {
 		overlapPreference = value;
 		updateTieBreakerNotice();
+		saveAdvancedSettingsToStorage();
 
 		refreshRecommendationsForAdvancedSettingChange();
 	};
@@ -14537,6 +14758,7 @@ window.toggleAdvancedRecommendationBehavior = function() {
 	window.setEVPreference = function(value) {
 		evPreference = value;
 		updateTieBreakerNotice();
+		saveAdvancedSettingsToStorage();
 
 		refreshRecommendationsForAdvancedSettingChange();
 	};
@@ -14555,10 +14777,12 @@ window.toggleAdvancedRecommendationBehavior = function() {
 	window.setPRSphereBonus = function(value) {
 		prSphereBonus = Number(value) || 0;
 		refreshSphereSettings();
+		saveAdvancedSettingsToStorage();
 	};
 
 	window.toggleSpherePremium = function(button) {
 		spherePremium = !spherePremium;
+		saveAdvancedSettingsToStorage();
 
 		refreshSphereSettings();
 		renderAdvancedSettings();
@@ -14573,6 +14797,7 @@ window.toggleAdvancedRecommendationBehavior = function() {
 
 		sphereBonusMultiplierPercent =
 		Math.max(0, Math.min(100, Math.floor(parsed)));
+		saveAdvancedSettingsToStorage();
 
 		const input = document.getElementById("sphereBonusMultiplierInput");
 		if (input) {
@@ -14585,6 +14810,7 @@ window.toggleAdvancedRecommendationBehavior = function() {
 	window.setRareTargetingAggressiveness = function(value) {
 		rareTargetingAggressiveness = value;
 		updateTieBreakerNotice();
+		saveAdvancedSettingsToStorage();
 
 		refreshRecommendationsForAdvancedSettingChange();
 	};
@@ -14592,6 +14818,7 @@ window.toggleAdvancedRecommendationBehavior = function() {
 	window.setEquivalenceModeStrictness = function(value) {
 		equivalenceModeStrictness = value;
 		updateTieBreakerNotice();
+		saveAdvancedSettingsToStorage();
 
 		runSimulation();
 		renderUI();
@@ -14601,6 +14828,7 @@ window.toggleAdvancedRecommendationBehavior = function() {
 	window.setStrategicScorePreset = function(value) {
 		strategicScorePreset = value;
 		updateTieBreakerNotice();
+		saveAdvancedSettingsToStorage();
 
 		refreshRecommendationsForAdvancedSettingChange();
 	};
@@ -14643,6 +14871,7 @@ window.toggleAdvancedRecommendationBehavior = function() {
 
 		saveTieBreakerConfig();
 		saveTieBreakerEnabled();
+		saveAdvancedSettingsToStorage();
 
 		renderAdvancedSettings();
 		updateTieBreakerNotice();
@@ -14715,6 +14944,7 @@ window.toggleAdvancedRecommendationBehavior = function() {
 
 	window.toggleSafeAggressiveAvoidHighProb = function(btn) {
 		safeAggressiveAvoidHighProb = !safeAggressiveAvoidHighProb;
+		saveAdvancedSettingsToStorage();
 
 		btn.classList.toggle('active-btn', safeAggressiveAvoidHighProb);
 
@@ -14734,6 +14964,7 @@ window.toggleAdvancedRecommendationBehavior = function() {
 
 	window.toggleSafeAvoidAdjacentKnown = function(btn) {
 		safeAvoidAdjacentKnown = !safeAvoidAdjacentKnown;
+		saveAdvancedSettingsToStorage();
 
 		btn.classList.toggle('active-btn', safeAvoidAdjacentKnown);
 
@@ -14749,6 +14980,7 @@ window.toggleAdvancedRecommendationBehavior = function() {
 
 	window.setSafeRiskBand = function(value) {
 		safeRiskBand = value / 100;
+		saveAdvancedSettingsToStorage();
 
 		if (appState.probs) {
 			highlightRecommendations(appState.probs);
@@ -14763,6 +14995,7 @@ window.toggleAdvancedRecommendationBehavior = function() {
 	window.setResolutionOpportunityThreshold = function(value) {
 		resolutionOpportunityThreshold = value / 100;
 		updateTieBreakerNotice();
+		saveAdvancedSettingsToStorage();
 
 		if (appState.probs) {
 			highlightRecommendations(appState.probs);
@@ -14865,6 +15098,7 @@ window.toggleAdvancedRecommendationBehavior = function() {
 
 		forcedStartMode = getDefaultModeForRareCount(n);
 		applyDefaultSafetySettingsForRareCount(n);
+		saveAdvancedSettingsToStorage();
 
 		updateModeButtons();
 
