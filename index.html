@@ -1855,12 +1855,16 @@ resolutionOpportunity: [
 		"opportunityChance",
 		"failedBranchExpectedRemaining",
 		"bestOutcomeRemaining",
-		"expectedRemaining"
+		"expectedRemaining",
+		"resolutionOpportunityFailedBranchForcedEV",
+		"resolutionOpportunityFailedBranchForcedTiles"
 		],
 
 futureCollapse: [
 		"futureRiskAdjustedRemaining",
-		"weightedEV"
+		"weightedEV",
+		"futureWorstOutcomeForcedEV",
+		"futureWorstOutcomeForcedTiles"
 		],
 
 rareShipTargeting: [
@@ -1881,8 +1885,9 @@ bestSafeAggressive: [
 		"undiscoveredSize2",
 		"safeBoardReduction",
 		"safeWeightedEV",
-		"safePrimaryChance"
-
+		"safePrimaryChance",
+		"bestSafeWorstOutcomeForcedEV",
+		"bestSafeWorstOutcomeForcedTiles"
 		],
 
 strategicAggressive: [
@@ -1891,7 +1896,9 @@ strategicAggressive: [
 		"strategicUndiscoveredSize2",
 		"strategicBoardReduction",
 		"strategicHitChance",
-		"weightedEV"
+		"weightedEV",
+		"strategicWorstOutcomeForcedEV",
+		"strategicWorstOutcomeForcedTiles"
 		],
 
 strategicSafe: [
@@ -1900,7 +1907,9 @@ strategicSafe: [
 		"strategicUndiscoveredSize3",
 		"strategicUndiscoveredSize2",
 		"strategicHitChance",
-		"weightedEV"
+		"weightedEV",
+		"strategicWorstOutcomeForcedEV",
+		"strategicWorstOutcomeForcedTiles"
 		],
 
 preMeg: [
@@ -1917,6 +1926,31 @@ preMeg: [
 	let tieBreakerEnabled = loadTieBreakerEnabled();
 
 	const TIEBREAKER_DEFINITIONS = {
+		
+strategicWorstOutcomeForcedEV: {
+label: "More guaranteed EV on worst outcome",
+getValue: c => c.strategicWorstOutcomeForcedEV || 0,
+higherIsBetter: true
+		},
+
+strategicWorstOutcomeForcedTiles: {
+label: "More guaranteed tiles on worst outcome",
+getValue: c => c.strategicWorstOutcomeForcedTiles || 0,
+higherIsBetter: true
+		},
+		
+bestSafeWorstOutcomeForcedEV: {
+label: "More guaranteed EV on worst outcome",
+getValue: c => c.bestSafeWorstOutcomeForcedEV || 0,
+higherIsBetter: true
+		},
+
+bestSafeWorstOutcomeForcedTiles: {
+label: "More guaranteed tiles on worst outcome",
+getValue: c => c.bestSafeWorstOutcomeForcedTiles || 0,
+higherIsBetter: true
+		},
+
 failedBranchExpectedRemaining: {
 label: "Lowest expected boards if opportunity fails",
 getValue: c => c.failedBranchExpectedRemaining,
@@ -2087,6 +2121,30 @@ rareTargetHitChance: {
 label: "Higher non-blue chance after equal board collapse",
 getValue: c => c.p,
 higherIsBetter: true
+		},
+		
+resolutionOpportunityFailedBranchForcedEV: {
+label: "More guaranteed EV on worst failed resolution-opportunity branch",
+getValue: c => c.failedBranchForcedEV || 0,
+higherIsBetter: true
+		},
+
+resolutionOpportunityFailedBranchForcedTiles: {
+label: "More guaranteed tiles on worst failed resolution-opportunity branch",
+getValue: c => c.failedBranchForcedTiles || 0,
+higherIsBetter: true
+		},
+
+futureWorstOutcomeForcedEV: {
+label: "More guaranteed EV on worst outcome",
+getValue: c => c.futureWorstOutcomeForcedEV || 0,
+higherIsBetter: true
+		},
+
+futureWorstOutcomeForcedTiles: {
+label: "More guaranteed tiles on worst outcome",
+getValue: c => c.futureWorstOutcomeForcedTiles || 0,
+higherIsBetter: true
 		}
 	};
 
@@ -2114,6 +2172,22 @@ strategicSafe: "sts"
 	"strategicSafe",
 	"preMeg"
 	];
+	
+	const PRE_MEG_MOVE_CLASS_LABELS = {
+resolutionOpportunity: "Resolution Opportunity",
+futureCollapse: "Future / 2-Step Collapse",
+rareShipTargeting: "Rare Ship Targeting",
+progressMove: "Safe Mode Clarity / Progress",
+bestSafeAggressive: "Best Safe Move",
+	};
+
+	const DEFAULT_PRE_MEG_MOVE_CLASS_ENABLED = {
+resolutionOpportunity: false,
+futureCollapse: false,
+rareShipTargeting: false,
+progressMove: false,
+bestSafeAggressive: true,
+	};
 
 	const EQUIVALENCE_EXPORT_ORDER = [
 	"default",
@@ -2179,7 +2253,16 @@ missEndsGameForcedTiles: 21,
 worstOutcomeBoards: 22,
 avoidMissEndsGame: 23,
 missEndsGameForcedEV: 24,
-failedBranchExpectedRemaining: 25
+failedBranchExpectedRemaining: 25,
+resolutionOpportunityFailedBranchForcedEV: 26,
+resolutionOpportunityFailedBranchForcedTiles: 27,
+futureWorstOutcomeForcedEV: 28,
+futureWorstOutcomeForcedTiles: 29,
+bestSafeWorstOutcomeForcedEV: 30,
+bestSafeWorstOutcomeForcedTiles: 31,
+strategicWorstOutcomeForcedEV: 32,
+strategicWorstOutcomeForcedTiles: 33
+
 	};
 
 	const FULL_EXACT_BOARD_STORE_LIMIT = 120000;
@@ -2283,6 +2366,8 @@ key: cells[0],
 	// ===============================
 
 	let preMegTiebreakersEnabled = true;
+	let preMegMoveClassEnabled =
+	structuredClone(DEFAULT_PRE_MEG_MOVE_CLASS_ENABLED);
 
 	let staggerBoardMode = 0;
 
@@ -3509,7 +3594,7 @@ solverInfo: null
 	function getGameContext() {
 		const { hits, misses } = getHitMissCounts();
 
-		const naturalAggressive = hits >= 5 && misses >= 3;
+		const naturalAggressive = hits >= 5;
 		const defaultMode = getDefaultModeForRareCount(rareCount);
 		const mode = forcedStartMode || defaultMode;
 
@@ -6459,6 +6544,8 @@ riskAdjustedRemaining: boardCount
 
 		let expectedRemaining = 0;
 		let worstRemaining = 0;
+		let futureWorstOutcomeForcedEV = 0;
+		let futureWorstOutcomeForcedTiles = 0;
 
 		for (const outcome in buckets) {
 			const childSet = buckets[outcome];
@@ -6474,10 +6561,25 @@ riskAdjustedRemaining: boardCount
 			);
 
 			expectedRemaining += branchChance * childScore.expectedRemaining;
-			worstRemaining = Math.max(
-			worstRemaining,
-			childScore.worstRemaining
-			);
+
+			if (childScore.worstRemaining > worstRemaining) {
+				const childBoards =
+				getBoardsFromBoardSet(childSet);
+
+				worstRemaining = childScore.worstRemaining;
+
+				futureWorstOutcomeForcedEV =
+				countForcedEVInBoards(
+				childBoards,
+				tile
+				);
+
+				futureWorstOutcomeForcedTiles =
+				countForcedTilesInBoards(
+				childBoards,
+				tile
+				);
+			}
 		}
 
 		const riskAdjustedRemaining =
@@ -6488,6 +6590,8 @@ i: tile,
 			expectedRemaining,
 			worstRemaining,
 			riskAdjustedRemaining,
+			futureWorstOutcomeForcedEV,
+			futureWorstOutcomeForcedTiles,
 futureDepth: remainingDepth
 		};
 	}
@@ -6557,6 +6661,8 @@ futureDepth: remainingDepth
 
 		let expectedRemaining = 0;
 		let worstRemaining = 0;
+		let futureWorstOutcomeForcedEV = 0;
+		let futureWorstOutcomeForcedTiles = 0;
 
 		const totalBoards = allBoards.length;
 
@@ -6582,7 +6688,25 @@ futureDepth: remainingDepth
 
 			if (bestSecondScore < Infinity) {
 				expectedRemaining += pFirst * bestSecondScore;
-				worstRemaining = Math.max(worstRemaining, bestSecondScore);
+
+				if (bestSecondScore > worstRemaining) {
+					const boardsAfterFirst =
+					getBoardsFromBoardSet(boardSet, allBoards);
+
+					worstRemaining = bestSecondScore;
+
+					futureWorstOutcomeForcedEV =
+					countForcedEVInBoards(
+					boardsAfterFirst,
+					firstTile
+					);
+
+					futureWorstOutcomeForcedTiles =
+					countForcedTilesInBoards(
+					boardsAfterFirst,
+					firstTile
+					);
+				}
 			}
 		}
 
@@ -6594,7 +6718,9 @@ i: firstTile,
 p: probs[firstTile],
 			expectedRemaining,
 			worstRemaining,
-			riskAdjustedRemaining
+			riskAdjustedRemaining,
+			futureWorstOutcomeForcedEV,
+			futureWorstOutcomeForcedTiles
 		};
 	}
 
@@ -6615,6 +6741,8 @@ p: probs[firstTile],
 
 		let expectedRemaining = 0;
 		let worstRemaining = 0;
+		let futureWorstOutcomeForcedEV = 0;
+		let futureWorstOutcomeForcedTiles = 0;
 
 		for (const key in firstBuckets) {
 			const boardsAfterFirst = firstBuckets[key];
@@ -6630,7 +6758,22 @@ p: probs[firstTile],
 			if (!bestSecond) continue;
 
 			expectedRemaining += pFirst * bestSecond.expectedRemaining;
-			worstRemaining = Math.max(worstRemaining, bestSecond.expectedRemaining);
+
+			if (bestSecond.expectedRemaining > worstRemaining) {
+				worstRemaining = bestSecond.expectedRemaining;
+
+				futureWorstOutcomeForcedEV =
+				countForcedEVInBoards(
+				boardsAfterFirst,
+				firstTile
+				);
+
+				futureWorstOutcomeForcedTiles =
+				countForcedTilesInBoards(
+				boardsAfterFirst,
+				firstTile
+				);
+			}
 		}
 
 		const riskAdjustedRemaining =
@@ -6641,7 +6784,9 @@ i: firstTile,
 p: probs[firstTile],
 			expectedRemaining,
 			worstRemaining,
-			riskAdjustedRemaining
+			riskAdjustedRemaining,
+			futureWorstOutcomeForcedEV,
+			futureWorstOutcomeForcedTiles
 		};
 	}
 
@@ -7242,7 +7387,8 @@ forcedMisses: forcedEntries.filter(({ color }) => color === "miss")
 		boardSet,
 		boardCount,
 		nextKnownMask,
-		ctx
+		ctx,
+		tile
 		);
 
 		if (forcedOpportunity) {
@@ -7254,7 +7400,10 @@ opportunityType: "forcedResolution",
 opportunityChance: forcedOpportunity.opportunityChance,
 bestOutcomeRemaining: forcedOpportunity.bestOutcomeRemaining,
 bestOutcome: forcedOpportunity.bestOutcome,
+resolvingOutcomes: forcedOpportunity.resolvingOutcomes,
 failedBranchExpectedRemaining: forcedOpportunity.failedBranchExpectedRemaining,
+failedBranchForcedEV: forcedOpportunity.failedBranchForcedEV,
+failedBranchForcedTiles: forcedOpportunity.failedBranchForcedTiles,
 expectedRemaining: forcedOpportunity.expectedRemaining
 			};
 		}
@@ -7266,7 +7415,8 @@ expectedRemaining: forcedOpportunity.expectedRemaining
 		boardSet,
 		boardCount,
 		nextKnownMask,
-		ctx
+		ctx,
+		tile
 		);
 
 		if (!finalDecisionOpportunity) return null;
@@ -7279,7 +7429,10 @@ opportunityType: "finalDecisionSetup",
 opportunityChance: finalDecisionOpportunity.opportunityChance,
 bestOutcomeRemaining: finalDecisionOpportunity.bestOutcomeRemaining,
 bestOutcome: finalDecisionOpportunity.bestOutcome,
+resolvingOutcomes: finalDecisionOpportunity.resolvingOutcomes,
 failedBranchExpectedRemaining: finalDecisionOpportunity.failedBranchExpectedRemaining,
+failedBranchForcedEV: finalDecisionOpportunity.failedBranchForcedEV,
+failedBranchForcedTiles: finalDecisionOpportunity.failedBranchForcedTiles,
 expectedRemaining: finalDecisionOpportunity.expectedRemaining
 		};
 	}
@@ -7290,15 +7443,20 @@ expectedRemaining: finalDecisionOpportunity.expectedRemaining
 	boardSet,
 	boardCount,
 	nextKnownMask,
-	ctx
+	ctx,
+	revealedTile
 	) {
 		let opportunityChance = 0;
 		let bestOutcomeRemaining = Infinity;
 		let bestOutcome = null;
+		let resolvingOutcomes = [];
 		let expectedRemaining = 0;
 
 		let failedBranchChance = 0;
 		let failedBranchExpectedRemaining = 0;
+		let worstFailedBranchRemaining = 0;
+		let failedBranchForcedEV = 0;
+		let failedBranchForcedTiles = 0;
 
 		for (const outcome in outcomeSets) {
 			const outcomeBoardSet = boardSet & outcomeSets[outcome];
@@ -7321,6 +7479,7 @@ expectedRemaining: finalDecisionOpportunity.expectedRemaining
 
 			if (createsOpportunity) {
 				opportunityChance += pOutcome;
+				resolvingOutcomes.push(outcome);
 
 				if (count < bestOutcomeRemaining) {
 					bestOutcomeRemaining = count;
@@ -7329,6 +7488,25 @@ expectedRemaining: finalDecisionOpportunity.expectedRemaining
 			} else {
 				failedBranchChance += pOutcome;
 				failedBranchExpectedRemaining += pOutcome * count;
+
+				if (count > worstFailedBranchRemaining) {
+					const failedBoards =
+					getBoardsFromBoardSet(outcomeBoardSet);
+
+					worstFailedBranchRemaining = count;
+
+					failedBranchForcedEV =
+					countForcedEVInBoards(
+					failedBoards,
+					revealedTile
+					);
+
+					failedBranchForcedTiles =
+					countForcedTilesInBoards(
+					failedBoards,
+					revealedTile
+					);
+				}
 			}
 		}
 
@@ -7343,8 +7521,11 @@ expectedRemaining: finalDecisionOpportunity.expectedRemaining
 			opportunityChance,
 			bestOutcomeRemaining,
 			bestOutcome,
+			resolvingOutcomes,
 			expectedRemaining,
-			failedBranchExpectedRemaining
+			failedBranchExpectedRemaining,
+			failedBranchForcedEV,
+			failedBranchForcedTiles
 		};
 	}
 
@@ -7356,7 +7537,18 @@ expectedRemaining: finalDecisionOpportunity.expectedRemaining
 	) {
 		let pool = candidates;
 		const order = tieBreakerConfig[moveClass] || [];
-		let layer = startingLayer;
+
+		const preMegResult =
+		applyPreMegTiebreaker(pool, moveClass);
+
+		if (preMegResult.winner) {
+			return preMegResult.winner;
+		}
+
+		pool = preMegResult.pool;
+
+		let layer =
+		startingLayer + (preMegResult.applied ? 1 : 0);
 
 		for (const key of order) {
 
@@ -7426,11 +7618,8 @@ expectedRemaining: finalDecisionOpportunity.expectedRemaining
 		...DEFAULT_TIEBREAKER_CONFIG[moveClass]
 		];
 
-		tieBreakerEnabled[moveClass] = {};
-
-		for (const key of DEFAULT_TIEBREAKER_CONFIG[moveClass]) {
-			tieBreakerEnabled[moveClass][key] = true;
-		}
+		tieBreakerEnabled[moveClass] =
+		createDefaultTieBreakerEnabled()[moveClass] || {};
 
 		saveTieBreakerConfig();
 		saveTieBreakerEnabled();
@@ -8317,6 +8506,20 @@ weightedEV: getCandidateWeightedEV(tile)
 		const evStats = getTileEVStats(appState.allBoards);
 		return evStats[tile]?.weightedEV || 0;
 	}
+	
+	function getBoardsFromBoardSet(boardSet, boards = appState.allBoards) {
+		const result = [];
+
+		if (!boards || !boards.length) return result;
+
+		for (let i = 0; i < boards.length; i++) {
+			if (boardSet & (1n << BigInt(i))) {
+				result.push(boards[i]);
+			}
+		}
+
+		return result;
+	}
 
 	function countForcedTilesInBoards(boards, revealedTile) {
 		if (!boards || boards.length === 0) return 0;
@@ -8354,6 +8557,55 @@ weightedEV: getCandidateWeightedEV(tile)
 		nextCounts.hits >= 5 &&
 		nextCounts.misses >= 3
 		);
+	}
+	
+	function getWorstOutcomeForcedScores(candidate) {
+		if (
+				!appState.allBoards ||
+				appState.allBoards.length === 0
+				) {
+			return {
+forcedEV: 0,
+forcedTiles: 0
+			};
+		}
+
+		const buckets =
+		bucketBoardsByOutcome(
+		appState.allBoards,
+		candidate.i
+		);
+
+		let worstBoardCount = -1;
+		let forcedEV = 0;
+		let forcedTiles = 0;
+
+		for (const outcome in buckets) {
+			const boards = buckets[outcome];
+
+			if (!boards?.length) continue;
+
+			if (boards.length > worstBoardCount) {
+				worstBoardCount = boards.length;
+
+				forcedEV =
+				countForcedEVInBoards(
+				boards,
+				candidate.i
+				);
+
+				forcedTiles =
+				countForcedTilesInBoards(
+				boards,
+				candidate.i
+				);
+			}
+		}
+
+		return {
+			forcedEV,
+			forcedTiles
+		};
 	}
 
 	function getWorstOutcomeBoardCountScore(candidate) {
@@ -8502,16 +8754,72 @@ forcedEV: entersMissEndsGame
 			: 0
 		};
 	}
+	
+	function ensurePreMegCandidateScores(pool) {
+		for (const candidate of pool) {
+			if (candidate.missEndsGameChance === undefined) {
+				candidate.missEndsGameChance =
+				getMissEndsGameChanceScore(candidate);
+			}
 
-	function applyPreMegTiebreaker(pool) {
+			if (candidate.missEndsGameForcedTiles === undefined) {
+				const forcedTileScore =
+				getMissEndsGameForcedTileScore(candidate);
+
+				candidate.missEndsGameForcedTiles =
+				forcedTileScore.forcedTiles;
+
+				candidate.entersMissEndsGame =
+				candidate.entersMissEndsGame ||
+				forcedTileScore.entersMissEndsGame;
+			}
+
+			if (candidate.missEndsGameForcedEV === undefined) {
+				const forcedEVScore =
+				getMissEndsGameForcedEVScore(candidate);
+
+				candidate.missEndsGameForcedEV =
+				forcedEVScore.forcedEV;
+
+				candidate.entersMissEndsGame =
+				candidate.entersMissEndsGame ||
+				forcedEVScore.entersMissEndsGame;
+			}
+
+			if (candidate.worstOutcomeBoardCount === undefined) {
+				candidate.worstOutcomeBoardCount =
+				getWorstOutcomeBoardCountScore(candidate);
+			}
+
+			candidate.entersMissEndsGame =
+			candidate.entersMissEndsGame ||
+			(
+			Number.isFinite(candidate.missEndsGameChance) &&
+			candidate.missEndsGameChance > 0
+			) ||
+			Number.isFinite(candidate.worstOutcomeBoardCount);
+		}
+	}
+
+	function applyPreMegTiebreaker(pool, moveClass) {
 		const context = getInfoContext();
 
 		if (
 				!preMegTiebreakersEnabled ||
+				!preMegMoveClassEnabled?.[moveClass] ||
 				context.missEndsGame ||
-				pool.length <= 1 ||
-				!pool.some(c => c.entersMissEndsGame)
+				pool.length <= 1
 				) {
+			return {
+winner: null,
+				pool,
+applied: false
+			};
+		}
+
+		ensurePreMegCandidateScores(pool);
+
+		if (!pool.some(c => c.entersMissEndsGame)) {
 			return {
 winner: null,
 				pool,
@@ -8523,6 +8831,10 @@ applied: false
 		let layer = 0;
 
 		for (const key of tieBreakerConfig.preMeg || []) {
+			if (tieBreakerEnabled?.preMeg?.[key] === false) {
+				continue;
+			}
+
 			const def = TIEBREAKER_DEFINITIONS[key];
 			if (!def) continue;
 
@@ -8831,20 +9143,24 @@ highProbFallback: false
 
 			candidate.safePrimaryChance =
 			getPrimaryChance(candidate);
+
+			const worstOutcomeForced =
+			getWorstOutcomeForcedScores(candidate);
+
+			candidate.bestSafeWorstOutcomeForcedEV =
+			worstOutcomeForced.forcedEV;
+
+			candidate.bestSafeWorstOutcomeForcedTiles =
+			worstOutcomeForced.forcedTiles;
+			
+			
 		});
-
-		const preMegResult = applyPreMegTiebreaker(pool);
-
-		if (preMegResult.winner) {
-			return attachSafetyFilterAudit(preMegResult.winner);
-		}
 
 		return attachSafetyFilterAudit(
 		applyConfiguredTiebreakers(
-		preMegResult.pool,
+		pool,
 		"bestSafeAggressive",
-		{ huntMode },
-		preMegResult.applied ? 1 : 0
+		{ huntMode }
 		)
 		);
 	}
@@ -9144,6 +9460,15 @@ label: "Lowest tile index (could not break tie)",
 			c.weightedEV = c.ev;
 			c.undiscoveredShip =
 			getUndiscoveredShipTiebreakStats(c.i, appState.allBoards);
+			const worstOutcomeForced =
+			getWorstOutcomeForcedScores(c);
+
+			c.strategicWorstOutcomeForcedEV =
+			worstOutcomeForced.forcedEV;
+
+			c.strategicWorstOutcomeForcedTiles =
+			worstOutcomeForced.forcedTiles;
+
 			c.score = scoreStrategicCandidate(c, huntMode);
 			c.tiebreaker = null;
 			c.tiebreakerPassed = null;
@@ -9401,6 +9726,23 @@ label: "Lowest tile index (could not break tie)",
 		body
 		);
 	}
+	
+	function renderPreMegMoveClassToggles() {
+		return `
+		<div style="display:flex; flex-wrap:wrap; gap:6px;">
+		${Object.entries(PRE_MEG_MOVE_CLASS_LABELS).map(([moveClass, label]) => `
+			<button
+			${!preMegTiebreakersEnabled ? "disabled" : ""}
+			class="${preMegTiebreakersEnabled && preMegMoveClassEnabled?.[moveClass] ? "active-btn" : ""}"
+			onclick="togglePreMegMoveClass('${moveClass}', this)"
+			>
+			${label}
+			</button>
+			`).join("")}
+		</div>
+		`;
+	}
+
 	function renderAdvancedSafetySettings() {
 		const riskValue = String(Math.round(safeRiskBand * 100));
 		const resolutionValue = String(
@@ -9523,18 +9865,39 @@ label: "Lowest tile index (could not break tie)",
 			"Controls when Equivalence Mode is allowed to override normal recommendations."
 			)}
 
-		${renderSettingRow(
-			`
-			<button
-			id="preMegTiebreakersToggle"
-			class="${preMegTiebreakersEnabled ? "active-btn" : ""}"
-			onclick="togglePreMegTiebreakers(this)"
-			>
-			Pre-MEG Tiebreaker 🦈
-			</button>
-			`,
-			"If a move could cause the next Miss to End the Game (MEG), apply the configurable Pre-MEG tiebreaker order."
-			)}
+		<div class="advanced-setting-row">
+		<div class="advanced-setting-control">
+		<button
+		id="preMegTiebreakersToggle"
+		class="${preMegTiebreakersEnabled ? 'active-btn' : ''}"
+		onclick="togglePreMegTiebreakers(this)"
+		>
+		Pre-MEG Tiebreaker 🦈
+		</button>
+		</div>
+
+		<div class="advanced-setting-description">
+		If a move could cause the next Miss to End the Game (MEG), apply the configurable Pre-MEG tiebreaker order.
+		</div>
+		</div>
+
+		<div class="advanced-setting-row">
+		<div
+		style="
+	font-size: 12px;
+	font-weight: 700;
+	letter-spacing: 0.3px;
+	text-transform: uppercase;
+	opacity: 0.7;
+"
+		>
+		Apply Pre-MEG to:
+		</div>
+
+		<div>
+		${renderPreMegMoveClassToggles()}
+		</div>
+		</div>
 		`;
 
 		return `
@@ -10612,6 +10975,29 @@ label: "Lowest tile index (could not break tie)",
 	function formatBoardPlural(count) {
 		return `${count} board${count === 1 ? "" : "s"}`;
 	}
+	
+	function formatResolutionOutcomeText(move) {
+		const outcomes =
+		move.resolvingOutcomes?.length
+		? move.resolvingOutcomes
+		: [move.bestOutcome];
+
+		const hasAnonymousRare =
+		outcomes.some(isAnonymousRareShip);
+
+		const labels = outcomes
+		.filter(Boolean)
+		.filter(outcome => !isAnonymousRareShip(outcome))
+		.map(getColorTooltipLabel);
+
+		if (hasAnonymousRare) {
+			labels.push("an unfound rare");
+		}
+
+		if (!labels.length) return "";
+
+		return `Target color(s): <b>${labels.join(" or ")}</b>`;
+	}
 
 	function appendFinalDecisionSetupCard(messages) {
 		const move = appState.finalDecisionMove;
@@ -10679,6 +11065,9 @@ label: "Lowest tile index (could not break tie)",
 
 		const chanceText =
 		`${(move.opportunityChance * 100).toFixed(1)}%`;
+		
+		const resolutionOutcomeText =
+		formatResolutionOutcomeText(move);
 
 		const outcomeText =
 		move.opportunityType === "forcedResolution"
@@ -10698,6 +11087,7 @@ label: "Lowest tile index (could not break tie)",
 			${formatMoveCoord(move.i, "#dc2626")}
 			<br>
 Chance: <b>${chanceText}</b>
+			${resolutionOutcomeText ? `<br>${resolutionOutcomeText}` : ""}
 			`,
 			"info-red"
 			)
@@ -10717,6 +11107,7 @@ Consider:
 		${formatMoveCoord(move.i)}
 		<br>
 Chance: <b>${chanceText}</b>
+		${resolutionOutcomeText ? `<br>${resolutionOutcomeText}` : ""}
 		<br>
 		Best resolving branch: <b>${formatBoardPlural(move.bestOutcomeRemaining)}</b>
 		${move.tiebreaker?.includes("(1 candidate)") ? "" : getTiebreakerText(move)}
@@ -12053,7 +12444,7 @@ label: context.label
 		? current.misses + 1
 		: current.misses;
 
-		const naturalAggressive = hits >= 5 && misses >= 3;
+		const naturalAggressive = hits >= 5;
 
 		let huntMode = naturalAggressive;
 
@@ -13984,6 +14375,21 @@ colorMasks: { ...shipMasks }
 			}
 		}
 
+		enabled.resolutionOpportunity.resolutionOpportunityFailedBranchForcedEV = false;
+		enabled.resolutionOpportunity.resolutionOpportunityFailedBranchForcedTiles = false;
+
+		enabled.futureCollapse.futureWorstOutcomeForcedEV = false;
+		enabled.futureCollapse.futureWorstOutcomeForcedTiles = false;
+		
+		enabled.bestSafeAggressive.bestSafeWorstOutcomeForcedEV = false;
+		enabled.bestSafeAggressive.bestSafeWorstOutcomeForcedTiles = false;
+
+		enabled.strategicAggressive.strategicWorstOutcomeForcedEV = false;
+		enabled.strategicAggressive.strategicWorstOutcomeForcedTiles = false;
+
+		enabled.strategicSafe.strategicWorstOutcomeForcedEV = false;
+		enabled.strategicSafe.strategicWorstOutcomeForcedTiles = false;
+
 		return enabled;
 	}
 
@@ -14041,8 +14447,13 @@ colorMasks: { ...shipMasks }
 			}
 
 			order.forEach((key, keyIndex) => {
-				tieBreakerEnabled[moveClass][key] =
-				chunk[keyIndex] !== "0";
+				const savedValue = chunk[keyIndex];
+
+				if (savedValue === "0") {
+					tieBreakerEnabled[moveClass][key] = false;
+				} else if (savedValue === "1") {
+					tieBreakerEnabled[moveClass][key] = true;
+				}
 			});
 		});
 	}
@@ -14115,6 +14526,7 @@ colorMasks: { ...shipMasks }
 				overlapPreference,
 				evPreference,
 				preMegTiebreakersEnabled,
+				preMegMoveClassEnabled,
 				safeOverrideEnabled,
 				safeAvoidAdjacentKnown,
 				safeAggressiveAvoidHighProb,
@@ -14128,6 +14540,19 @@ colorMasks: { ...shipMasks }
 			);
 		} catch {
 		}
+	}
+	
+	function sanitizePreMegMoveClassEnabled(saved) {
+		const defaults =
+		structuredClone(DEFAULT_PRE_MEG_MOVE_CLASS_ENABLED);
+
+		for (const moveClass in defaults) {
+			if (typeof saved?.[moveClass] === "boolean") {
+				defaults[moveClass] = saved[moveClass];
+			}
+		}
+
+		return defaults;
 	}
 
 	function loadAdvancedSettingsFromStorage() {
@@ -14198,6 +14623,13 @@ colorMasks: { ...shipMasks }
 				preMegTiebreakersEnabled =
 				saved.preMegTiebreakersEnabled;
 			}
+			
+			if (saved.preMegMoveClassEnabled) {
+				preMegMoveClassEnabled =
+				sanitizePreMegMoveClassEnabled(
+				saved.preMegMoveClassEnabled
+				);
+			}
 
 			if (typeof saved.safeOverrideEnabled === "boolean") {
 				safeOverrideEnabled = saved.safeOverrideEnabled;
@@ -14262,12 +14694,25 @@ colorMasks: { ...shipMasks }
 				if (current[i] !== defaults[i]) return true;
 			}
 
+			const defaultEnabled =
+			createDefaultTieBreakerEnabled();
+
 			for (const key of defaults) {
 				if (
-						tieBreakerEnabled?.[moveClass]?.[key] === false
+						tieBreakerEnabled?.[moveClass]?.[key] !==
+						defaultEnabled?.[moveClass]?.[key]
 						) {
 					return true;
 				}
+			}
+		}
+		
+		for (const moveClass in DEFAULT_PRE_MEG_MOVE_CLASS_ENABLED) {
+			if (
+					preMegMoveClassEnabled?.[moveClass] !==
+					DEFAULT_PRE_MEG_MOVE_CLASS_ENABLED[moveClass]
+					) {
+				return true;
 			}
 		}
 
@@ -14473,6 +14918,19 @@ newColor: grid[i]
 	// T.15A ADVANCED SETTINGS SERIALIZATION
 	// ===============================
 	
+	function applyPreMegMoveClassPart(part) {
+		preMegMoveClassEnabled =
+		structuredClone(DEFAULT_PRE_MEG_MOVE_CLASS_ENABLED);
+
+		if (!part) return;
+
+		Object.keys(PRE_MEG_MOVE_CLASS_LABELS)
+		.forEach((moveClass, index) => {
+			preMegMoveClassEnabled[moveClass] =
+			part[index] === "1";
+		});
+	}
+	
 	function invertObject(obj) {
 		return Object.fromEntries(
 		Object.entries(obj).map(([key, value]) => [value, key])
@@ -14486,7 +14944,8 @@ newColor: grid[i]
 			tieBreakerPart,
 			safetyPart,
 			presetPart,
-			enabledPart
+			enabledPart,
+			preMegMoveClassPart
 			] = code.trim().split("|");
 
 			if (version !== "SV1") {
@@ -14516,6 +14975,7 @@ newColor: grid[i]
 			saveTieBreakerConfig();
 			applyTieBreakerEnabledPart(enabledPart);
 			saveTieBreakerEnabled();
+			applyPreMegMoveClassPart(preMegMoveClassPart);
 
 			const safety = safetyPart.split(",").map(Number);
 
@@ -14605,13 +15065,20 @@ newColor: grid[i]
 		].join(",");
 
 		const enabledPart = encodeTieBreakerEnabledPart();
+		
+		const preMegMoveClassPart = Object.keys(PRE_MEG_MOVE_CLASS_LABELS)
+		.map(moveClass =>
+		preMegMoveClassEnabled?.[moveClass] ? 1 : 0
+		)
+		.join("");
 
 		return [
 		"SV1",
 		tieBreakerPart,
 		safetyPart,
 		presetPart,
-		enabledPart
+		enabledPart,
+		preMegMoveClassPart
 		].join("|");
 	}
 
@@ -14620,39 +15087,58 @@ newColor: grid[i]
 	// T.16 EVENT BINDS
 	// ===============================
 	
+	window.togglePreMegMoveClass = function(moveClass, btn) {
+		if (!(moveClass in DEFAULT_PRE_MEG_MOVE_CLASS_ENABLED)) {
+			return;
+		}
+
+		preMegMoveClassEnabled[moveClass] =
+		!preMegMoveClassEnabled[moveClass];
+
+		saveAdvancedSettingsToStorage();
+
+		btn.classList.toggle(
+		'active-btn',
+		preMegMoveClassEnabled[moveClass]
+		);
+
+		updateTieBreakerNotice();
+		refreshRecommendationsForAdvancedSettingChange();
+	};
+	
 	window.resetSimulationTestBoard = function() {
-	if (!simulationMode) return;
-	if (rareCount === null) return;
+		if (!simulationMode) return;
+		if (rareCount === null) return;
 
-	const nextBoard = generateRandomSimulationBoard();
+		const nextBoard = generateRandomSimulationBoard();
 
-	if (!nextBoard) {
-		showError("Could not generate a valid simulation board.");
-		return;
-	}
+		if (!nextBoard) {
+			showError("Could not generate a valid simulation board.");
+			return;
+		}
 
-	grid = Array(25).fill(null);
-	selectedColor = null;
-	history = [];
-	moves = [];
-	redoStack = [];
-	currentMode = MODE.NORMAL;
-	appState = createEmptyAppState();
+		grid = Array(25).fill(null);
+		selectedColor = null;
+		history = [];
+		moves = [];
+		redoStack = [];
+		currentMode = MODE.NORMAL;
+		appState = createEmptyAppState();
 
-	simulationBoard = nextBoard;
-	simulationRevealed = Array(25).fill(false);
+		simulationBoard = nextBoard;
+		simulationRevealed = Array(25).fill(false);
 
-	clearPlacementsCache();
-	clearRecommendations();
+		clearPlacementsCache();
+		clearRecommendations();
 
-	render();
-	renderSimulationBoard();
-	resetHeatmapState();
-	refreshAfterAnalysisStateChange();
-	updateBoardLock();
-	updateColorAvailability();
-	renderUI();
-};
+		render();
+		renderSimulationBoard();
+		resetHeatmapState();
+		refreshAfterAnalysisStateChange();
+		updateBoardLock();
+		updateColorAvailability();
+		renderUI();
+	};
 	
 	window.toggleAdvancedSafeMoveFilters = function() {
 		advancedSafeMoveFiltersExpanded =
@@ -14725,14 +15211,11 @@ newColor: grid[i]
 	window.togglePreMegTiebreakers = function(btn) {
 		preMegTiebreakersEnabled =
 		!preMegTiebreakersEnabled;
+
 		saveAdvancedSettingsToStorage();
 
-		btn.classList.toggle(
-		'active-btn',
-		preMegTiebreakersEnabled
-		);
-
 		updateTieBreakerNotice();
+		renderAdvancedSettings();
 		refreshRecommendationsForAdvancedSettingChange();
 	};
 
@@ -14856,6 +15339,8 @@ newColor: grid[i]
 		overlapPreference = "default";
 		evPreference = "default";
 		preMegTiebreakersEnabled = true;
+		preMegMoveClassEnabled =
+		structuredClone(DEFAULT_PRE_MEG_MOVE_CLASS_ENABLED);
 		safeOverrideEnabled = false;
 
 		if (rareCount !== null) {
