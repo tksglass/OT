@@ -2433,6 +2433,7 @@ key: cells[0],
 	let resolutionOpportunityStyle = "any";
 	let equivalenceModeStrictness = "strictEVAndCollapse";
 	let strategicScorePreset = "default";
+	let bestStrategicMoveEnabled = false;
 	let rareTargetingAggressiveness = "default";
 	let overlapPreference = "default";
 	let evPreference = "default";
@@ -2736,20 +2737,27 @@ index: i,
 		if(redoStack.length === 0) return;
 
 		const move = redoStack.pop();
+		const historySnapshot = createHistorySnapshot();
 
-		history.push({
-grid: [...grid],
-			rareCount,
-			forcedStartMode,
-appState: deepClone(appState),
-			currentMode
-		});
+		resetModeAndCache();
 
 		grid[move.index] = move.newColor;
 
+		saveHistorySnapshot(historySnapshot);
 		moves.push(move);
 
 		clearPlacementsCache();
+
+		const { hits, misses } = getHitMissCounts();
+
+		if (shouldEndGameOnMiss({
+newColor: move.newColor,
+						hits,
+						misses
+					})) {
+			handleGameOver();
+			return;
+		}
 
 		refreshAfterBoardChange();
 	};
@@ -7301,6 +7309,7 @@ forcedMisses: forcedEntries.filter(({ color }) => color === "miss")
 
 	function shouldHideBestStrategicMove(ctx = getInfoContext()) {
 		return (
+		!bestStrategicMoveEnabled ||
 		!!appState.noEquivalencePlan?.length ||
 		!!appState.finalDecisionMove ||
 		!!appState.resolutionOpportunityMove ||
@@ -9680,6 +9689,7 @@ label: "Lowest tile index (could not break tie)",
 			<select
 			id="strategicScorePresetSelect"
 			onchange="setStrategicScorePreset(this.value)"
+			${bestStrategicMoveEnabled ? "" : "disabled"}
 			>
 			${renderOption("default", "Default", strategicScorePreset)}
 			${renderOption("reductionHeavy", "Board Reduction", strategicScorePreset)}
@@ -9695,6 +9705,7 @@ label: "Lowest tile index (could not break tie)",
 			<select
 			id="overlapPreferenceSelect"
 			onchange="setOverlapPreference(this.value)"
+			${bestStrategicMoveEnabled ? "" : "disabled"}
 			>
 			${renderOption("default", "Overlap: Default", overlapPreference)}
 			${renderOption("moderate", "Overlap: Moderate", overlapPreference)}
@@ -9709,6 +9720,7 @@ label: "Lowest tile index (could not break tie)",
 			<select
 			id="evPreferenceSelect"
 			onchange="setEVPreference(this.value)"
+			${bestStrategicMoveEnabled ? "" : "disabled"}
 			>
 			${renderOption("default", "EV: Default", evPreference)}
 			${renderOption("moderate", "EV: Moderate", evPreference)}
@@ -9808,6 +9820,20 @@ label: "Lowest tile index (could not break tie)",
 		`;
 
 		const recommendationBehaviorBody = `
+		
+		${renderSettingRow(
+			`
+			<button
+			id="bestStrategicMoveToggle"
+			class="${bestStrategicMoveEnabled ? "active-btn" : ""}"
+			onclick="toggleBestStrategicMove(this)"
+			>
+			Best Strategic Move
+			</button>
+			`,
+			"Shows or hides the Best Strategic Move recommendation. Strategic scoring settings only apply when this is enabled."
+			)}
+		
 		${renderSettingRow(
 			`
 			<button
@@ -10225,7 +10251,9 @@ label: "Lowest tile index (could not break tie)",
 		});
 
 		const best =
-		strategicMoves.find(m => !isSameMove(m, safest)) || null;
+		bestStrategicMoveEnabled
+		? strategicMoves.find(m => !isSameMove(m, safest)) || null
+		: null;
 
 		const isDisplayableAlternative = move =>
 		move &&
@@ -10976,28 +11004,36 @@ label: "Lowest tile index (could not break tie)",
 		return `${count} board${count === 1 ? "" : "s"}`;
 	}
 	
-	function formatResolutionOutcomeText(move) {
-		const outcomes =
-		move.resolvingOutcomes?.length
-		? move.resolvingOutcomes
-		: [move.bestOutcome];
+function formatResolutionOutcomeText(move) {
+	const outcomes =
+	move.resolvingOutcomes?.length
+	? move.resolvingOutcomes
+	: [move.bestOutcome];
 
-		const hasAnonymousRare =
-		outcomes.some(isAnonymousRareShip);
+	const hasAnonymousRare =
+	outcomes.some(isAnonymousRareShip);
 
-		const labels = outcomes
-		.filter(Boolean)
-		.filter(outcome => !isAnonymousRareShip(outcome))
-		.map(getColorTooltipLabel);
+	const labels = outcomes
+	.filter(outcome => outcome !== null && outcome !== undefined)
+	.filter(outcome => !isAnonymousRareShip(outcome))
+	.map(outcome => {
+		if (outcome === 0 || outcome === "0") return "Blue";
 
-		if (hasAnonymousRare) {
-			labels.push("an unfound rare");
-		}
+		return getColorTooltipLabel(
+			typeof outcome === "number"
+			? ID_TO_COLOR[outcome]
+			: outcome
+		);
+	});
 
-		if (!labels.length) return "";
-
-		return `Target color(s): <b>${labels.join(" or ")}</b>`;
+	if (hasAnonymousRare) {
+		labels.push("an unfound rare");
 	}
+
+	if (!labels.length) return "";
+
+	return `Target color(s): <b>${labels.join(" or ")}</b>`;
+}
 
 	function appendFinalDecisionSetupCard(messages) {
 		const move = appState.finalDecisionMove;
@@ -11080,7 +11116,7 @@ label: "Lowest tile index (could not break tie)",
 			makeCard(
 			"Resolution Opportunity",
 			`
-			One possible outcome on the recommended tile leads to ${outcomeText}.
+			One or more possible outcome(s) on the recommended tile leads to ${outcomeText}.
 			<br><br>
 			<b>${matchingRecommendation}</b>
 			<br>
@@ -11100,7 +11136,7 @@ Chance: <b>${chanceText}</b>
 		makeCard(
 		"Resolution Opportunity",
 		`
-		One possible outcome on this tile leads to ${outcomeText}.
+		One or more possible outcome(s) on this tile leads to ${outcomeText}.
 		<br><br>
 Consider:
 		<br>
@@ -13848,6 +13884,13 @@ EV: <b>${gambaOption.ev.toFixed(0)}</b><br>
 		const adjacencySafetyText = safeAvoidAdjacentKnown
 		? "<br>• Avoiding adjacency: red/rainbow exempt"
 		: "";
+		
+		const { hits, misses, huntMode } = getGameContext();
+
+		const aggressiveSwitchText =
+		!huntMode && hits >= 4 && misses <= 1
+		? "<br>• Consider switching to Aggressive Mode."
+		: "";
 
 		const resolutionOpportunityEgg =
 		maybeShowResolutionOpportunityResultEgg();
@@ -13871,6 +13914,7 @@ EV: <b>${gambaOption.ev.toFixed(0)}</b><br>
 			<br>Boards: ${info.boards}
 			${deterministicText}
 			${adjacencySafetyText}
+			${aggressiveSwitchText}
 			${resolutionOpportunityEgg}
 			</div>
 			`;
@@ -13884,6 +13928,7 @@ EV: <b>${gambaOption.ev.toFixed(0)}</b><br>
 		<br>· ${confidence} confidence; Valid samples: ${info.valid}
 		${deterministicText}
 		${adjacencySafetyText}
+		${aggressiveSwitchText}
 		${resolutionOpportunityEgg}
 		</div>
 		`;
@@ -14535,6 +14580,7 @@ colorMasks: { ...shipMasks }
 				spherePremium,
 				sphereBonusMultiplierPercent,
 				tieBreakerConfig,
+				bestStrategicMoveEnabled,
 				tieBreakerEnabled
 			})
 			);
@@ -14677,6 +14723,10 @@ colorMasks: { ...shipMasks }
 				tieBreakerEnabled =
 				sanitizeTieBreakerEnabled(saved.tieBreakerEnabled);
 			}
+			
+			if (typeof saved.bestStrategicMoveEnabled === "boolean") {
+				bestStrategicMoveEnabled = saved.bestStrategicMoveEnabled;
+			}
 
 			advancedSettingsLoadedFromStorage = true;
 		} catch {
@@ -14725,6 +14775,7 @@ colorMasks: { ...shipMasks }
 		overlapPreference !== "default" ||
 		evPreference !== "default" ||
 		preMegTiebreakersEnabled !== true ||
+		bestStrategicMoveEnabled !== false ||
 		safeOverrideEnabled !== false
 		);
 	}
@@ -14997,6 +15048,9 @@ newColor: grid[i]
 			
 			safeOverrideEnabled =
 			safety.length < 8 ? false : safety[7] === 1;
+			
+			bestStrategicMoveEnabled =
+			safety.length < 9 ? false : safety[8] === 1;
 
 			const presets = presetPart.split(",").map(Number);
 
@@ -15044,7 +15098,8 @@ newColor: grid[i]
 		preMegTiebreakersEnabled ? 1 : 0,
 		Math.round(safeAggressiveAvoidHighProbThreshold * 100),
 		RESOLUTION_OPPORTUNITY_STYLE_EXPORT_ORDER.indexOf(resolutionOpportunityStyle),
-		safeOverrideEnabled ? 1 : 0
+		safeOverrideEnabled ? 1 : 0,
+		bestStrategicMoveEnabled ? 1 : 0
 		].join(",");
 
 		const presetPart = [
@@ -15086,6 +15141,16 @@ newColor: grid[i]
 	// ===============================
 	// T.16 EVENT BINDS
 	// ===============================
+	
+	window.toggleBestStrategicMove = function(btn) {
+		bestStrategicMoveEnabled = !bestStrategicMoveEnabled;
+
+		saveAdvancedSettingsToStorage();
+		updateTieBreakerNotice();
+
+		renderAdvancedSettings();
+		refreshRecommendationsForAdvancedSettingChange();
+	};
 	
 	window.togglePreMegMoveClass = function(moveClass, btn) {
 		if (!(moveClass in DEFAULT_PRE_MEG_MOVE_CLASS_ENABLED)) {
@@ -15342,6 +15407,7 @@ newColor: grid[i]
 		preMegMoveClassEnabled =
 		structuredClone(DEFAULT_PRE_MEG_MOVE_CLASS_ENABLED);
 		safeOverrideEnabled = false;
+		bestStrategicMoveEnabled = false;
 
 		if (rareCount !== null) {
 			applyDefaultSafetySettingsForRareCount(
