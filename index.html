@@ -6876,7 +6876,7 @@ p: probs[firstTile],
 		const [b1, b2] = allBoards;
 
 		const firstDifference = getUnknownTiles().find(i =>
-		b1[i] !== b2[i]
+		getBoardColorAt(b1, i) !== getBoardColorAt(b2, i)
 		);
 
 		appState.probs = probs;
@@ -11004,36 +11004,36 @@ label: "Lowest tile index (could not break tie)",
 		return `${count} board${count === 1 ? "" : "s"}`;
 	}
 	
-function formatResolutionOutcomeText(move) {
-	const outcomes =
-	move.resolvingOutcomes?.length
-	? move.resolvingOutcomes
-	: [move.bestOutcome];
+	function formatResolutionOutcomeText(move) {
+		const outcomes =
+		move.resolvingOutcomes?.length
+		? move.resolvingOutcomes
+		: [move.bestOutcome];
 
-	const hasAnonymousRare =
-	outcomes.some(isAnonymousRareShip);
+		const hasAnonymousRare =
+		outcomes.some(isAnonymousRareShip);
 
-	const labels = outcomes
-	.filter(outcome => outcome !== null && outcome !== undefined)
-	.filter(outcome => !isAnonymousRareShip(outcome))
-	.map(outcome => {
-		if (outcome === 0 || outcome === "0") return "Blue";
+		const labels = outcomes
+		.filter(outcome => outcome !== null && outcome !== undefined)
+		.filter(outcome => !isAnonymousRareShip(outcome))
+		.map(outcome => {
+			if (outcome === 0 || outcome === "0") return "Blue";
 
-		return getColorTooltipLabel(
+			return getColorTooltipLabel(
 			typeof outcome === "number"
 			? ID_TO_COLOR[outcome]
 			: outcome
-		);
-	});
+			);
+		});
 
-	if (hasAnonymousRare) {
-		labels.push("an unfound rare");
+		if (hasAnonymousRare) {
+			labels.push("an unfound rare");
+		}
+
+		if (!labels.length) return "";
+
+		return `Target color(s): <b>${labels.join(" or ")}</b>`;
 	}
-
-	if (!labels.length) return "";
-
-	return `Target color(s): <b>${labels.join(" or ")}</b>`;
-}
 
 	function appendFinalDecisionSetupCard(messages) {
 		const move = appState.finalDecisionMove;
@@ -11604,7 +11604,6 @@ p: rainbowChance,
 		}
 
 		const play = DOM.playBoard;
-		clearRecommendations();
 
 		let [b1, b2] = appState.allBoards;
 		let candidates = [];
@@ -11631,6 +11630,8 @@ p: rainbowChance,
 		if (candidates.length === 0) {
 			return false;
 		}
+
+		clearRecommendations();
 
 		const displayCandidates =
 		collapseFinalMoveCandidatesByOutcome(candidates, b1, b2);
