@@ -1909,9 +1909,9 @@ bestSafeAggressive: [
 		"undiscoveredSize4",
 		"undiscoveredSize3",
 		"undiscoveredSize2",
+		"safePrimaryChance",
 		"safeBoardReduction",
 		"safeWeightedEV",
-		"safePrimaryChance",
 		"bestSafeWorstOutcomeForcedEV",
 		"bestSafeWorstOutcomeForcedTiles"
 		],
@@ -2125,8 +2125,8 @@ higherIsBetter: true
 modeHitChance: {
 label: c =>
 			c.huntMode
-			? "Higher hit chance after equal board reduction"
-			: "Lower hit risk after equal board reduction",
+			? "Higher hit chance"
+			: "Lower hit risk",
 getValue: c => c.p,
 higherIsBetter: c => c.huntMode
 		},
@@ -2153,58 +2153,58 @@ shouldSkip: pool => !poolHasUndiscoveredShipSize(pool, 2)
 		},
 
 safeBoardReduction: {
-label: "Higher board reduction after equal undiscovered-ship chance",
+label: "Higher board reduction",
 getValue: c => c.safeBoardReduction,
 higherIsBetter: true
 		},
 		
 branchSolvability: {
-	label: "Higher future branch solvability",
+label: "Higher future branch solvability",
 
-	getValue: c =>
-		c.branchSolvability ?? 0,
+getValue: c =>
+			c.branchSolvability ?? 0,
 
-	higherIsBetter: true,
+higherIsBetter: true,
 
-	shouldSkip: pool => {
-		if (
-			appState.solverInfo?.type !== "exact" ||
-			appState.solverInfo?.countOnly ||
-			!appState.allBoards ||
-			appState.allBoards.length === 0 ||
-			appState.allBoards.length > 20000
-		) {
-			return true;
-		}
-
-		const work = getBranchSolvabilityWork();
-
-		if (!work) {
-			return true;
-		}
-
-		for (const candidate of pool) {
-			candidate.branchSolvability =
-				getBranchSolvabilityScore(candidate.i);
-
-			if (work.aborted) {
-				for (const c of pool) {
-					delete c.branchSolvability;
+shouldSkip: pool => {
+				if (
+						appState.solverInfo?.type !== "exact" ||
+						appState.solverInfo?.countOnly ||
+						!appState.allBoards ||
+						appState.allBoards.length === 0 ||
+						appState.allBoards.length > 20000
+						) {
+					return true;
 				}
 
-				return true;
-			}
-		}
+				const work = getBranchSolvabilityWork();
 
-		return false;
-	}
-},
+				if (!work) {
+					return true;
+				}
+
+				for (const candidate of pool) {
+					candidate.branchSolvability =
+					getBranchSolvabilityScore(candidate.i);
+
+					if (work.aborted) {
+						for (const c of pool) {
+							delete c.branchSolvability;
+						}
+
+						return true;
+					}
+				}
+
+				return false;
+			}
+		},
 
 safePrimaryChance: {
 label: c =>
 			c.huntMode
-			? "Higher hit chance after equal undiscovered-ship chance and reduction"
-			: "Higher miss chance after equal undiscovered-ship chance and reduction",
+			? "Higher hit chance"
+			: "Higher miss chance",
 getValue: c => c.safePrimaryChance,
 higherIsBetter: true
 		},
@@ -2234,7 +2234,7 @@ higherIsBetter: true
 		},
 
 strategicBoardReduction: {
-label: "Higher board reduction after equal strategic score",
+label: "Higher board reduction",
 getValue: c => c.reduction,
 higherIsBetter: true
 		},
@@ -2246,7 +2246,7 @@ higherIsBetter: c => c.huntMode
 		},
 
 rareTargetHitChance: {
-label: "Higher non-blue chance after equal board collapse",
+label: "Higher non-blue chance",
 getValue: c => c.p,
 higherIsBetter: true
 		},
@@ -2402,7 +2402,7 @@ branchSolvability: 39
 
 	const FULL_EXACT_BOARD_STORE_LIMIT = 120000;
 	
-	const ADVANCED_SETTINGS_STORAGE_KEY = "otAdvancedSettingsV1";
+	const ADVANCED_SETTINGS_STORAGE_KEY = "otAdvancedSettingsV2";
 
 	// ===============================
 	// T.01A CONSTANT BUILDERS
@@ -2581,6 +2581,10 @@ key: cells[0],
 	let safeOverrideEnabled = false;
 	let safeAggressiveAvoidHighProb = false;
 	let safeAggressiveAvoidHighProbThreshold = 0.90;
+	let sevenColorDensityEnabled = true;
+	let sevenColorDensityHitType = "anyHit";
+	let sevenColorDensityMoves = 3;
+	let sevenColorDensityHits = 2;
 	let advancedSettingsLoadedFromStorage = false;
 
 	let simulationMode = false;
@@ -3754,10 +3758,75 @@ solverInfo: null
 		);
 	}
 
+const SEVEN_COLOR_DENSITY_POLICIES = {
+	anyHit: {
+		2: [2],
+		3: [2, 3],
+		4: [2, 3],
+		5: [3, 4],
+		6: [4]
+	},
+	size3Plus: {
+		2: [2],
+		3: [2],
+		4: [2, 3],
+		5: [3, 4]
+	}
+};
+
+	function getSevenColorDensityMovesOptions() {
+		return Object.keys(
+		SEVEN_COLOR_DENSITY_POLICIES[sevenColorDensityHitType] || {}
+		)
+		.map(Number)
+		.sort((a, b) => a - b);
+	}
+
+	function getSevenColorDensityHitOptions(
+	movesValue = sevenColorDensityMoves
+	) {
+		return [
+		...(SEVEN_COLOR_DENSITY_POLICIES
+		[sevenColorDensityHitType]?.[movesValue] || [])
+		];
+	}
+
+	function sanitizeSevenColorDensitySettings() {
+		const moveOptions = getSevenColorDensityMovesOptions();
+
+		if (!moveOptions.includes(sevenColorDensityMoves)) {
+			sevenColorDensityMoves = moveOptions[0];
+		}
+
+		const hitOptions = getSevenColorDensityHitOptions();
+
+		if (!hitOptions.includes(sevenColorDensityHits)) {
+			sevenColorDensityHits = hitOptions[0];
+		}
+	}
+
+	function shouldUseSevenColorDensityAggressive() {
+		if (!sevenColorDensityEnabled) return false;
+		if (rareCount !== 3) return false;
+
+		const openingPlacements = getAcceptedPlacements()
+		.slice(0, sevenColorDensityMoves);
+
+		const qualifyingHits = openingPlacements.filter(move =>
+		sevenColorDensityHitType === "size3Plus"
+		? isSevenColorCoreHit(move.newColor)
+		: isHitColor(move.newColor)
+		).length;
+
+		return qualifyingHits >= sevenColorDensityHits;
+	}
+
 	function getGameContext() {
 		const { hits, misses } = getHitMissCounts();
 
-		const naturalAggressive = hits >= 5;
+		const naturalAggressive =
+		hits >= 5 ||
+		shouldUseSevenColorDensityAggressive();
 		const defaultMode = getDefaultModeForRareCount(rareCount);
 		const mode = forcedStartMode || defaultMode;
 
@@ -6197,7 +6266,7 @@ reason: "This starts a complete move path that avoids equivalence mode."
 		if (pool.length === 1) {
 			return withTiebreaker(
 			pool[0],
-			"Lower expected remaining boards after equal equivalence pressure",
+			"Lower expected remaining boards",
 			1
 			);
 		}
@@ -7042,14 +7111,14 @@ p: probs[firstTile],
 	}
 
 	function handleTwoBoardEndgame(valid, probs, allBoards) {
-	
-	if (
-	valid !== 2 ||!Array.isArray(allBoards) || allBoards.length !== 2
-	) {
-		return false;
-	}
+		
+		if (
+				valid !== 2 ||!Array.isArray(allBoards) || allBoards.length !== 2
+				) {
+			return false;
+		}
 
-	const [b1, b2] = allBoards;
+		const [b1, b2] = allBoards;
 
 		const firstDifference = getUnknownTiles().find(i =>
 		getBoardColorAt(b1, i) !== getBoardColorAt(b2, i)
@@ -8323,19 +8392,19 @@ type: "forcedResolution",
 		}
 
 		const work = {
-	ctx,
-	boardSet,
-	boardCount,
-	knownMask,
-	depth,
-	safeRiskBand,
-	weights: branchSolvabilityWeights,
-	memo: new Map(),
-	tileMemo: new Map(),
-	terminalMemo: new Map(),
-	deadline: performance.now() + BRANCH_SOLVABILITY_TIMEOUT_MS,
-	aborted: false
-};
+			ctx,
+			boardSet,
+			boardCount,
+			knownMask,
+			depth,
+			safeRiskBand,
+weights: branchSolvabilityWeights,
+memo: new Map(),
+tileMemo: new Map(),
+terminalMemo: new Map(),
+deadline: performance.now() + BRANCH_SOLVABILITY_TIMEOUT_MS,
+aborted: false
+		};
 
 		appState.branchSolvabilityWork = work;
 
@@ -8343,32 +8412,32 @@ type: "forcedResolution",
 	}
 	
 	function shouldAbortBranchSolvability(work) {
-	if (work.aborted) {
-		return true;
+		if (work.aborted) {
+			return true;
+		}
+
+		if (performance.now() >= work.deadline) {
+			work.aborted = true;
+			work.memo.clear();
+			work.tileMemo.clear();
+			work.terminalMemo.clear();
+
+			return true;
+		}
+
+		return false;
 	}
-
-	if (performance.now() >= work.deadline) {
-		work.aborted = true;
-		work.memo.clear();
-		work.tileMemo.clear();
-		work.terminalMemo.clear();
-
-		return true;
-	}
-
-	return false;
-}
 
 	function getBranchSolvabilityScore(tile) {
-	const work = getBranchSolvabilityWork();
+		const work = getBranchSolvabilityWork();
 
-	if (!work) return 0;
+		if (!work) return 0;
 
-	if (shouldAbortBranchSolvability(work)) {
-		return 0;
-	}
+		if (shouldAbortBranchSolvability(work)) {
+			return 0;
+		}
 
-	const score = scoreOneFutureTile(
+		const score = scoreOneFutureTile(
 		tile,
 		work.boardSet,
 		work.knownMask,
@@ -8378,14 +8447,14 @@ type: "forcedResolution",
 		work.tileMemo,
 		work.terminalMemo,
 		work
-	);
+		);
 
-	if (work.aborted) {
-		return 0;
+		if (work.aborted) {
+			return 0;
+		}
+
+		return score;
 	}
-
-	return score;
-}
 
 	function getBranchTerminalStats(boardSet, knownMask, ctx, terminalMemo) {
 		let byBoardSet = terminalMemo.get(boardSet);
@@ -8573,12 +8642,12 @@ solved: boardCount <= 1 || solved
 	tileMemo,
 	terminalMemo,
 	work
-) {
-	
-	if (shouldAbortBranchSolvability(work)) {
-	return 0;
-}
-	
+	) {
+		
+		if (shouldAbortBranchSolvability(work)) {
+			return 0;
+		}
+		
 		const cached = getStrategyMemo(
 		memo,
 		boardSet,
@@ -8595,26 +8664,26 @@ solved: boardCount <= 1 || solved
 		const boardCount = getBoardSetCount(boardSet, ctx);
 
 		if (boardCount <= 1) {
-	const terminalScore =
-	getBranchSurvivabilityTerminalScore(
-		boardSet,
-		knownMask,
-		ctx,
-		terminalMemo
-	);
+			const terminalScore =
+			getBranchSurvivabilityTerminalScore(
+			boardSet,
+			knownMask,
+			ctx,
+			terminalMemo
+			);
 
-	setStrategyMemo(
-	memo,
-	boardSet,
-	knownMask,
-	0,
-	0,
-	depth,
-	terminalScore
-	);
+			setStrategyMemo(
+			memo,
+			boardSet,
+			knownMask,
+			0,
+			0,
+			depth,
+			terminalScore
+			);
 
-	return terminalScore;
-}
+			return terminalScore;
+		}
 
 		if (depth <= 0) {
 			const terminalScore =
@@ -8643,24 +8712,24 @@ solved: boardCount <= 1 || solved
 		let bestScore = -Infinity;
 
 		for (let mask = unknownMask; mask; mask &= mask - 1) {
-	if (shouldAbortBranchSolvability(work)) {
-		return 0;
-	}
+			if (shouldAbortBranchSolvability(work)) {
+				return 0;
+			}
 
-	const bit = mask & -mask;
-	const nextTile = BIT_INDEX[bit];
+			const bit = mask & -mask;
+			const nextTile = BIT_INDEX[bit];
 
-	const score = scoreOneFutureTile(
-		nextTile,
-		boardSet,
-		knownMask,
-		depth,
-		ctx,
-		memo,
-		tileMemo,
-		terminalMemo,
-		work
-	);
+			const score = scoreOneFutureTile(
+			nextTile,
+			boardSet,
+			knownMask,
+			depth,
+			ctx,
+			memo,
+			tileMemo,
+			terminalMemo,
+			work
+			);
 
 			if (score > bestScore) {
 				bestScore = score;
@@ -8692,12 +8761,12 @@ solved: boardCount <= 1 || solved
 	tileMemo,
 	terminalMemo,
 	work
-) {
-	
-	if (shouldAbortBranchSolvability(work)) {
-	return 0;
-}
-	
+	) {
+		
+		if (shouldAbortBranchSolvability(work)) {
+			return 0;
+		}
+		
 		let byBoardSet = tileMemo.get(boardSet);
 
 		if (!byBoardSet) {
@@ -8718,30 +8787,30 @@ solved: boardCount <= 1 || solved
 		let totalScore = 0;
 
 		for (const outcome in outcomeSets) {
-	if (shouldAbortBranchSolvability(work)) {
-		return 0;
-	}
+			if (shouldAbortBranchSolvability(work)) {
+				return 0;
+			}
 
-	const outcomeBoardSet = boardSet & outcomeSets[outcome];
-	if (outcomeBoardSet === 0n) continue;
+			const outcomeBoardSet = boardSet & outcomeSets[outcome];
+			if (outcomeBoardSet === 0n) continue;
 
-	const outcomeCount =
-	getBoardSetCount(outcomeBoardSet, ctx);
+			const outcomeCount =
+			getBoardSetCount(outcomeBoardSet, ctx);
 
-	const chance = outcomeCount / boardCount;
+			const chance = outcomeCount / boardCount;
 
-	totalScore += chance *
-	scoreFutureSolvabilityBranch(
-		outcomeBoardSet,
-		nextKnownMask,
-		depth - 1,
-		ctx,
-		memo,
-		tileMemo,
-		terminalMemo,
-		work
-	);
-}
+			totalScore += chance *
+			scoreFutureSolvabilityBranch(
+			outcomeBoardSet,
+			nextKnownMask,
+			depth - 1,
+			ctx,
+			memo,
+			tileMemo,
+			terminalMemo,
+			work
+			);
+		}
 
 		byBoardSet.set(tileKey, totalScore);
 
@@ -9093,7 +9162,7 @@ rareP: getUnfoundRareProbability(i, allBoards)
 				if (pool.length === 1) {
 					bestRare = withTiebreaker(
 					pool[0],
-					"Higher unfound rare chance after equal board reduction",
+					"Higher unfound rare chance",
 					1
 					);
 				} else {
@@ -9179,7 +9248,7 @@ rareP: getUnfoundRareProbability(i, allBoards)
 					if (pool.length === 1) {
 						bestRare = withTiebreaker(
 						pool[0],
-						withCandidateCount("Lower expected remaining boards after equal rare chance", pool.length),
+						withCandidateCount("Lower expected remaining boards", pool.length),
 						1
 						);
 					} else {
@@ -10790,7 +10859,103 @@ label: "Lowest tile index (could not break tie)",
 			)}
 		`;
 
+		const densityMovesValue = String(sevenColorDensityMoves);
+		const densityHitsValue = String(sevenColorDensityHits);
+		const densityMisses =
+		sevenColorDensityMoves - sevenColorDensityHits;
+
 		const recommendationBehaviorBody = `
+		
+						<div class="advanced-setting-row">
+		<div>
+		<button
+		id="sevenColorDensityToggle"
+		class="${sevenColorDensityEnabled ? "active-btn" : ""}"
+		onclick="toggleSevenColorDensity(this)"
+		>
+		7-Color Density Switch
+		</button>
+		</div>
+
+		<div class="advanced-setting-description">
+		7-color only. Switch to Aggressive when the selected hit threshold is reached within the opening move window. Options that failed to beat the baseline (off) on any metric are not included.
+		</div>
+		</div>
+
+				<div class="advanced-setting-row">
+		<div
+		style="
+			font-size: 12px;
+			font-weight: 700;
+			letter-spacing: 0.3px;
+			text-transform: uppercase;
+			opacity: 0.7;
+		"
+		>
+		Switch to Aggressive if:
+		</div>
+
+		<div
+		style="
+			display:flex;
+			gap:6px;
+			align-items:center;
+			flex-wrap:wrap;
+			font-size:12px;
+		"
+		>
+		<span>Within the</span>
+
+		<select
+		id="sevenColorDensityMovesSelect"
+		onchange="setSevenColorDensityMoves(Number(this.value))"
+		${sevenColorDensityEnabled ? "" : "disabled"}
+		>
+		${getSevenColorDensityMovesOptions()
+			.map(value => renderOption(
+				String(value),
+				`first ${value} moves`,
+				densityMovesValue
+			))
+			.join("")}
+		</select>
+
+		<span>, switch if</span>
+
+		<select
+		id="sevenColorDensityHitsSelect"
+		onchange="setSevenColorDensityHits(Number(this.value))"
+		${sevenColorDensityEnabled ? "" : "disabled"}
+		>
+		${getSevenColorDensityHitOptions()
+			.map(value => renderOption(
+				String(value),
+				`at least ${value}`,
+				densityHitsValue
+			))
+			.join("")}
+		</select>
+
+		<span>are</span>
+
+		<select
+		id="sevenColorDensityHitTypeSelect"
+		${sevenColorDensityEnabled ? "" : "disabled"}
+		onchange="setSevenColorDensityHitType(this.value)"
+		>
+		${renderOption(
+			"anyHit",
+			"hits of any size",
+			sevenColorDensityHitType
+		)}
+		${renderOption(
+			"size3Plus",
+			"size 3+ hits",
+			sevenColorDensityHitType
+		)}
+		</select>
+		</div>
+		</div>
 		
 		${renderSettingRow(
 			`
@@ -15574,7 +15739,7 @@ colorMasks: { ...shipMasks }
 		try {
 			return sanitizeTieBreakerConfig(
 			JSON.parse(
-			localStorage.getItem("otTieBreakerConfig") || "{}"
+			localStorage.getItem("otTieBreakerConfigV2") || "{}"
 			)
 			);
 		} catch {
@@ -15584,7 +15749,7 @@ colorMasks: { ...shipMasks }
 
 	function saveTieBreakerConfig() {
 		localStorage.setItem(
-		"otTieBreakerConfig",
+		"otTieBreakerConfigV2",
 		JSON.stringify(tieBreakerConfig)
 		);
 
@@ -15610,6 +15775,10 @@ colorMasks: { ...shipMasks }
 				safeAvoidAdjacentKnown,
 				safeAggressiveAvoidHighProb,
 				safeAggressiveAvoidHighProbThreshold,
+				sevenColorDensityEnabled,
+				sevenColorDensityHitType,
+				sevenColorDensityMoves,
+				sevenColorDensityHits,
 				prSphereBonus,
 				spherePremium,
 				sphereBonusMultiplierPercent,
@@ -15729,6 +15898,31 @@ colorMasks: { ...shipMasks }
 				safeAggressiveAvoidHighProbThreshold =
 				saved.safeAggressiveAvoidHighProbThreshold;
 			}
+			
+			if (typeof saved.sevenColorDensityEnabled === "boolean") {
+				sevenColorDensityEnabled =
+				saved.sevenColorDensityEnabled;
+			}
+
+			if (
+					saved.sevenColorDensityHitType === "anyHit" ||
+					saved.sevenColorDensityHitType === "size3Plus"
+					) {
+				sevenColorDensityHitType =
+				saved.sevenColorDensityHitType;
+			}
+
+			if (Number.isInteger(saved.sevenColorDensityMoves)) {
+				sevenColorDensityMoves =
+				saved.sevenColorDensityMoves;
+			}
+
+			if (Number.isInteger(saved.sevenColorDensityHits)) {
+				sevenColorDensityHits =
+				saved.sevenColorDensityHits;
+			}
+
+			sanitizeSevenColorDensitySettings();
 
 			if (Number.isFinite(saved.prSphereBonus)) {
 				prSphereBonus = saved.prSphereBonus;
@@ -15812,6 +16006,10 @@ colorMasks: { ...shipMasks }
 		preMegTiebreakersEnabled !== true ||
 		bestStrategicMoveEnabled !== false ||
 		futureCollapseEnabled !== false ||
+		sevenColorDensityEnabled !== true ||
+		sevenColorDensityHitType !== "anyHit" ||
+		sevenColorDensityMoves !== 3 ||
+		sevenColorDensityHits !== 2 ||
 		safeOverrideEnabled !== false
 		);
 	}
@@ -16091,6 +16289,22 @@ newColor: grid[i]
 			futureCollapseEnabled =
 			safety.length < 10 ? false : safety[9] === 1;
 
+			sevenColorDensityHitType =
+			safety.length < 11 || safety[10] === 0
+			? "anyHit"
+			: "size3Plus";
+
+			sevenColorDensityMoves =
+			safety.length < 12 ? 3 : safety[11];
+
+			sevenColorDensityHits =
+			safety.length < 13 ? 2 : safety[12];
+			
+			sevenColorDensityEnabled =
+			safety.length < 14 ? true : safety[13] === 1;
+
+			sanitizeSevenColorDensitySettings();
+
 			const presets = presetPart.split(",").map(Number);
 
 			equivalenceModeStrictness =
@@ -16139,7 +16353,11 @@ newColor: grid[i]
 		RESOLUTION_OPPORTUNITY_STYLE_EXPORT_ORDER.indexOf(resolutionOpportunityStyle),
 		safeOverrideEnabled ? 1 : 0,
 		bestStrategicMoveEnabled ? 1 : 0,
-		futureCollapseEnabled ? 1 : 0
+		futureCollapseEnabled ? 1 : 0,
+		sevenColorDensityHitType === "size3Plus" ? 1 : 0,
+		sevenColorDensityMoves,
+		sevenColorDensityHits,
+		sevenColorDensityEnabled ? 1 : 0
 		].join(",");
 
 		const presetPart = [
@@ -16181,6 +16399,60 @@ newColor: grid[i]
 	// ===============================
 	// T.16 EVENT BINDS
 	// ===============================
+	
+	window.toggleSevenColorDensity = function(btn) {
+		sevenColorDensityEnabled = !sevenColorDensityEnabled;
+
+		saveAdvancedSettingsToStorage();
+		updateTieBreakerNotice();
+
+		renderAdvancedSettings();
+		refreshRecommendationsForAdvancedSettingChange();
+	};
+	
+	window.setSevenColorDensityHitType = function(value) {
+		if (
+				value !== "anyHit" &&
+				value !== "size3Plus"
+				) {
+			return;
+		}
+
+		sevenColorDensityHitType = value;
+
+		sanitizeSevenColorDensitySettings();
+		saveAdvancedSettingsToStorage();
+		updateTieBreakerNotice();
+		renderAdvancedSettings();
+		refreshRecommendationsForAdvancedSettingChange();
+	};
+
+	window.setSevenColorDensityMoves = function(value) {
+		const moveOptions = getSevenColorDensityMovesOptions();
+
+		if (!moveOptions.includes(value)) return;
+
+		sevenColorDensityMoves = value;
+
+		sanitizeSevenColorDensitySettings();
+		saveAdvancedSettingsToStorage();
+		updateTieBreakerNotice();
+		renderAdvancedSettings();
+		refreshRecommendationsForAdvancedSettingChange();
+	};
+
+	window.setSevenColorDensityHits = function(value) {
+		if (!getSevenColorDensityHitOptions().includes(value)) {
+			return;
+		}
+
+		sevenColorDensityHits = value;
+
+		saveAdvancedSettingsToStorage();
+		updateTieBreakerNotice();
+		renderAdvancedSettings();
+		refreshRecommendationsForAdvancedSettingChange();
+	};
 
 	window.toggleFutureCollapse = function(btn) {
 		futureCollapseEnabled = !futureCollapseEnabled;
@@ -16516,6 +16788,10 @@ newColor: grid[i]
 		safeOverrideEnabled = false;
 		bestStrategicMoveEnabled = false;
 		futureCollapseEnabled = false;
+		sevenColorDensityEnabled = true;
+		sevenColorDensityHitType = "anyHit";
+		sevenColorDensityMoves = 3;
+		sevenColorDensityHits = 2;
 
 		if (rareCount !== null) {
 			applyDefaultSafetySettingsForRareCount(
