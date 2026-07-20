@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 
 <!-- 
@@ -2134,21 +2135,45 @@ undiscoveredSize4: {
 label: "Higher chance to reveal undiscovered size-4 ship within risk band",
 getValue: c => c.undiscoveredShip?.size4 || 0,
 higherIsBetter: true,
-shouldSkip: pool => !poolHasUndiscoveredShipSize(pool, 4)
+shouldSkip: pool => {
+				const { huntMode } = getGameContext();
+				const { missEndsGame } = getInfoContext();
+
+				return (
+				(huntMode && missEndsGame) ||
+				!poolHasUndiscoveredShipSize(pool, 4)
+				);
+			}
 		},
 
 undiscoveredSize3: {
 label: "Higher chance to reveal undiscovered size-3 ship within risk band",
 getValue: c => c.undiscoveredShip?.size3 || 0,
 higherIsBetter: true,
-shouldSkip: pool => !poolHasUndiscoveredShipSize(pool, 3)
+shouldSkip: pool => {
+				const { huntMode } = getGameContext();
+				const { missEndsGame } = getInfoContext();
+
+				return (
+				(huntMode && missEndsGame) ||
+				!poolHasUndiscoveredShipSize(pool, 3)
+				);
+			}
 		},
 
 undiscoveredSize2: {
 label: "Higher chance to reveal undiscovered size-2 ship within risk band",
 getValue: c => c.undiscoveredShip?.size2 || 0,
 higherIsBetter: true,
-shouldSkip: pool => !poolHasUndiscoveredShipSize(pool, 2)
+shouldSkip: pool => {
+				const { huntMode } = getGameContext();
+				const { missEndsGame } = getInfoContext();
+
+				return (
+				(huntMode && missEndsGame) ||
+				!poolHasUndiscoveredShipSize(pool, 2)
+				);
+			}
 		},
 
 safeBoardReduction: {
@@ -3140,6 +3165,7 @@ appState: deepClone(appState),
 		appState.forcedResolutionMove = null;
 		appState.finalDecisionMove = null;
 		appState.resolutionOpportunityMove = null;
+		appState.anonymousRareResolutionMove = null;
 	}
 
 	function deepClone(obj) {
@@ -3236,6 +3262,7 @@ uncertaintyMove: null,
 forcedResolutionMove: null,
 finalDecisionMove: null,
 resolutionOpportunityMove: null,
+anonymousRareResolutionMove: null,
 solverInfo: null
 		};
 	}
@@ -3757,21 +3784,21 @@ solverInfo: null
 		);
 	}
 
-const SEVEN_COLOR_DENSITY_POLICIES = {
-	anyHit: {
-		2: [2],
-		3: [2, 3],
-		4: [2, 3],
-		5: [3, 4],
-		6: [4]
-	},
-	size3Plus: {
-		2: [2],
-		3: [2],
-		4: [2, 3],
-		5: [3, 4]
-	}
-};
+	const SEVEN_COLOR_DENSITY_POLICIES = {
+anyHit: {
+2: [2],
+3: [2, 3],
+4: [2, 3],
+5: [3, 4],
+6: [4]
+		},
+size3Plus: {
+2: [2],
+3: [2],
+4: [2, 3],
+5: [3, 4]
+		}
+	};
 
 	function getSevenColorDensityMovesOptions() {
 		return Object.keys(
@@ -5105,6 +5132,11 @@ countOnly: !fullExactAvailable || !allBoards
 		ensureExactCaches();
 
 		renderSelectedHeatmap();
+
+		if (handleAnonymousRareResolution(probs, allBoards)) {
+			updateExactSolverUI(valid);
+			return;
+		}
 
 		if (handleTwoBoardEndgame(valid, probs, allBoards)) {
 			updateExactSolverUI(valid);
@@ -7364,6 +7396,81 @@ collapseMove: data.collapseMove || null
 	// T.11 MOVE STRATEGY
 	// ===============================
 	
+	function getAnonymousRareResolutionMove(probs, allBoards) {
+		if (!allBoards?.length) return null;
+
+		const { huntMode } = getGameContext();
+
+		if (!huntMode) {
+			const { hits, misses } = getHitMissCounts();
+
+			const hasSafeGuaranteedBlue =
+			probs.some((p, i) =>
+			grid[i] === null &&
+			p === 0
+			) &&
+			!(
+			hits >= 5 &&
+			misses >= 3
+			);
+
+			if (hasSafeGuaranteedBlue) {
+				return null;
+			}
+		}
+
+		const unknownTiles = getUnknownTiles();
+
+		const deterministicBoard =
+		unknownTiles.length > 0 &&
+		unknownTiles.every(i =>
+		probs[i] === 0 ||
+		probs[i] === 1
+		);
+
+		if (!deterministicBoard) return null;
+
+		for (const i of unknownTiles) {
+			if (probs[i] !== 1) continue;
+
+			if (!appState.forcedTiles?.[i]) {
+				return {
+					i,
+p: 1,
+type: "anonymousRareResolution"
+				};
+			}
+		}
+
+		return null;
+	}
+
+	function handleAnonymousRareResolution(probs, allBoards) {
+		const move =
+		getAnonymousRareResolutionMove(
+		probs,
+		allBoards
+		);
+
+		if (!move) {
+			appState.anonymousRareResolutionMove = null;
+			return false;
+		}
+
+		appState.probs = probs;
+		appState.topMoves = [move];
+		appState.isTrueEndgame = false;
+		appState.isGuaranteed = false;
+		appState.specialGroup = null;
+		appState.collapseMove = null;
+		appState.anonymousRareResolutionMove = move;
+
+		highlightRecommendations(probs);
+		renderForcedOverlays();
+
+		return true;
+	}
+	
 	function handleGuaranteedMove(probs, allBoards) {
 		const { huntMode } = getGameContext();
 
@@ -8986,6 +9093,28 @@ weightedEV: getCandidateWeightedEV(i)
 		Or any other guaranteed blue tile (blue stripes).
 		`,
 		"info-green"
+		)
+		);
+
+		return true;
+	}
+	
+	function handleAnonymousRareResolutionInfo(messages) {
+		const move =
+		appState.anonymousRareResolutionMove;
+
+		if (!move) return false;
+
+		const [r, c] = indexToCoord(move.i);
+
+		messages.push(
+		makeCard(
+		"Resolve Unknown Rare",
+		`
+		<b>Row ${r + 1}, Col ${c + 1}</b><br><br>
+		This tile is a guaranteed hit belonging to an unresolved rare ship.<br>
+		`,
+		"info-purple"
 		)
 		);
 
@@ -10865,7 +10994,7 @@ label: "Lowest tile index (could not break tie)",
 
 		const recommendationBehaviorBody = `
 		
-						<div class="advanced-setting-row">
+		<div class="advanced-setting-row">
 		<div>
 		<button
 		id="sevenColorDensityToggle"
@@ -10881,7 +11010,7 @@ label: "Lowest tile index (could not break tie)",
 		</div>
 		</div>
 
-				<div class="advanced-setting-row">
+		<div class="advanced-setting-row">
 		<div
 		style="
 			font-size: 12px;
@@ -10912,9 +11041,9 @@ label: "Lowest tile index (could not break tie)",
 		>
 		${getSevenColorDensityMovesOptions()
 			.map(value => renderOption(
-				String(value),
-				`first ${value} moves`,
-				densityMovesValue
+			String(value),
+			`first ${value} moves`,
+			densityMovesValue
 			))
 			.join("")}
 		</select>
@@ -10928,9 +11057,9 @@ label: "Lowest tile index (could not break tie)",
 		>
 		${getSevenColorDensityHitOptions()
 			.map(value => renderOption(
-				String(value),
-				`at least ${value}`,
-				densityHitsValue
+			String(value),
+			`at least ${value}`,
+			densityHitsValue
 			))
 			.join("")}
 		</select>
@@ -10946,12 +11075,12 @@ label: "Lowest tile index (could not break tie)",
 			"anyHit",
 			"hits of any size",
 			sevenColorDensityHitType
-		)}
+			)}
 		${renderOption(
 			"size3Plus",
 			"size 3+ hits",
 			sevenColorDensityHitType
-		)}
+			)}
 		</select>
 		</div>
 		</div>
@@ -11664,6 +11793,21 @@ label: "Lowest tile index (could not break tie)",
 
 	function renderRecommendationsIfNeeded(hasStarted) {
 		if (!hasStarted) return;
+		
+		if (
+				appState.anonymousRareResolutionMove &&
+				appState.anonymousRareResolutionMove.i !== undefined
+				) {
+			clearRecommendations();
+
+			const move = appState.anonymousRareResolutionMove;
+
+			if (grid[move.i] === null) {
+				DOM.playBoard[move.i].classList.add("recommended-best");
+			}
+
+			return;
+		}
 
 		if (
 				appState.forcedResolutionMove &&
@@ -11939,6 +12083,11 @@ label: "Lowest tile index (could not break tie)",
 		forcedHits.length > 0;
 
 		if (appendKnownSafeBlueBeforeForcedHitsCard(messages, context)) {
+			renderInfoMessages(messages);
+			return;
+		}
+		
+		if (handleAnonymousRareResolutionInfo(messages)) {
 			renderInfoMessages(messages);
 			return;
 		}
